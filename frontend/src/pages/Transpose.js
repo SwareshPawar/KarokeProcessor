@@ -10,6 +10,10 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
   const [analyzedAudio, setAnalyzedAudio] = useState(null);
   const [transposedAudio, setTransposedAudio] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [isPlayingOriginal, setIsPlayingOriginal] = useState(false);
+  const [isPlayingTransposed, setIsPlayingTransposed] = useState(false);
+  const [originalAudioRef, setOriginalAudioRef] = useState(null);
+  const [transposedAudioRef, setTransposedAudioRef] = useState(null);
 
   const analyzeAudio = useCallback(async () => {
     if (!currentAudio?.filename) return;
@@ -153,6 +157,74 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
+  const toggleOriginalAudio = async () => {
+    if (!originalAudioRef || !currentAudio?.filename) return;
+    
+    if (isPlayingOriginal) {
+      originalAudioRef.pause();
+      setIsPlayingOriginal(false);
+    } else {
+      try {
+        // Pause transposed if playing
+        if (isPlayingTransposed && transposedAudioRef) {
+          transposedAudioRef.pause();
+          setIsPlayingTransposed(false);
+        }
+        
+        // Ensure the audio source is set
+        const audioSrc = `http://localhost:3001/api/audio/stream/${currentAudio.filename}`;
+        if (originalAudioRef.src !== audioSrc) {
+          originalAudioRef.src = audioSrc;
+          await originalAudioRef.load();
+        }
+        
+        await originalAudioRef.play();
+        setIsPlayingOriginal(true);
+      } catch (error) {
+        console.error('Error playing original audio:', error);
+        toast.error('Failed to play audio. Please check if the file exists.');
+      }
+    }
+  };
+
+  const toggleTransposedAudio = async () => {
+    if (!transposedAudioRef || !transposedAudio?.transposedFile) return;
+    
+    if (isPlayingTransposed) {
+      transposedAudioRef.pause();
+      setIsPlayingTransposed(false);
+    } else {
+      try {
+        // Pause original if playing
+        if (isPlayingOriginal && originalAudioRef) {
+          originalAudioRef.pause();
+          setIsPlayingOriginal(false);
+        }
+        
+        // Ensure the audio source is set
+        const audioSrc = `http://localhost:3001/api/audio/stream/${transposedAudio.transposedFile}`;
+        if (transposedAudioRef.src !== audioSrc) {
+          transposedAudioRef.src = audioSrc;
+          await transposedAudioRef.load();
+        }
+        
+        await transposedAudioRef.play();
+        setIsPlayingTransposed(true);
+      } catch (error) {
+        console.error('Error playing transposed audio:', error);
+        toast.error('Failed to play transposed audio. Please check if the file exists.');
+      }
+    }
+  };
+
+  const handleOriginalAudioEnd = () => {
+    setIsPlayingOriginal(false);
+  };
+
+  const handleTransposedAudioEnd = () => {
+    setIsPlayingTransposed(false);
+  };
+
   if (!currentAudio) {
     return (
       <div className="transpose-page">
@@ -221,8 +293,76 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
                 <span>Analyzing audio...</span>
               </div>
             )}
+
+            {/* Original Audio Player */}
+            <div className="audio-player-section">
+              <div className="audio-player-header">
+                <h4>Original Audio</h4>
+                <button 
+                  onClick={toggleOriginalAudio}
+                  className={`play-button ${isPlayingOriginal ? 'playing' : ''}`}
+                  disabled={!currentAudio?.filename}
+                >
+                  {isPlayingOriginal ? <FaVolumeUp /> : <FaMusic />}
+                  {isPlayingOriginal ? 'Playing...' : 'Play Original'}
+                </button>
+              </div>
+              <audio
+                ref={setOriginalAudioRef}
+                onEnded={handleOriginalAudioEnd}
+                onPause={() => setIsPlayingOriginal(false)}
+                onPlay={() => setIsPlayingOriginal(true)}
+                onError={(e) => {
+                  console.error('Audio loading error:', e);
+                  toast.error('Failed to load audio file');
+                }}
+                controls
+                preload="metadata"
+                crossOrigin="anonymous"
+                className="audio-controls"
+              />
+            </div>
           </div>
         </div>
+
+        {/* Transposed Audio Player */}
+        {transposedAudio && (
+          <div className="card">
+            <h2 className="text-xl font-semibold mb-4">
+              <FaExchangeAlt /> Transposed Audio ({transposedAudio.semitones > 0 ? '+' : ''}{transposedAudio.semitones} semitones)
+            </h2>
+            
+            <div className="audio-player-section">
+              <div className="audio-player-header">
+                <h4>
+                  Transposed to {calculateNewKey(transposedAudio.originalKey, transposedAudio.mode, transposedAudio.semitones)} {transposedAudio.mode}
+                </h4>
+                <button 
+                  onClick={toggleTransposedAudio}
+                  className={`play-button ${isPlayingTransposed ? 'playing' : ''}`}
+                  disabled={!transposedAudio?.transposedFile}
+                >
+                  {isPlayingTransposed ? <FaVolumeUp /> : <FaMusic />}
+                  {isPlayingTransposed ? 'Playing...' : 'Play Transposed'}
+                </button>
+              </div>
+              <audio
+                ref={setTransposedAudioRef}
+                onEnded={handleTransposedAudioEnd}
+                onPause={() => setIsPlayingTransposed(false)}
+                onPlay={() => setIsPlayingTransposed(true)}
+                onError={(e) => {
+                  console.error('Transposed audio loading error:', e);
+                  toast.error('Failed to load transposed audio file');
+                }}
+                controls
+                preload="metadata"
+                crossOrigin="anonymous"
+                className="audio-controls"
+              />
+            </div>
+          </div>
+        )}
 
         {/* Transposition Controls */}
         <div className="transpose-controls">

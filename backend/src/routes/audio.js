@@ -313,4 +313,76 @@ router.post('/convert', async (req, res) => {
   }
 });
 
+// Handle OPTIONS for audio streaming
+router.options('/stream/:filename', (req, res) => {
+  res.set({
+    'Access-Control-Allow-Origin': 'http://localhost:3000',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Range, Accept-Ranges, Content-Range, Content-Length, Content-Type',
+    'Access-Control-Expose-Headers': 'Accept-Ranges, Content-Range, Content-Length, Content-Type',
+    'Access-Control-Allow-Credentials': 'true'
+  });
+  res.sendStatus(200);
+});
+
+// Stream audio file
+router.get('/stream/:filename', async (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const filePath = path.join(__dirname, '../../uploads', filename);
+    
+    // Check if file exists
+    try {
+      await fs.access(filePath);
+    } catch (error) {
+      return res.status(404).json({ error: 'Audio file not found' });
+    }
+
+    // Get file stats
+    const stats = await fs.stat(filePath);
+    const fileSize = stats.size;
+
+    // Support range requests for audio streaming
+    const range = req.headers.range;
+    
+    // Set CORS headers for audio streaming
+    res.set({
+      'Access-Control-Allow-Origin': 'http://localhost:3000',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Range, Accept-Ranges, Content-Range, Content-Length, Content-Type',
+      'Access-Control-Expose-Headers': 'Accept-Ranges, Content-Range, Content-Length, Content-Type',
+      'Access-Control-Allow-Credentials': 'true'
+    });
+    
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = (end - start) + 1;
+      
+      res.writeHead(206, {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': 'audio/mpeg',
+      });
+      
+      const stream = require('fs').createReadStream(filePath, { start, end });
+      stream.pipe(res);
+    } else {
+      res.writeHead(200, {
+        'Content-Length': fileSize,
+        'Content-Type': 'audio/mpeg',
+        'Accept-Ranges': 'bytes'
+      });
+      
+      const stream = require('fs').createReadStream(filePath);
+      stream.pipe(res);
+    }
+  } catch (error) {
+    console.error('Stream error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

@@ -26,7 +26,25 @@ app.use(limiter);
 // CORS configuration
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'Origin',
+    'X-Requested-With',
+    'Content-Type',
+    'Accept',
+    'Authorization',
+    'Range',
+    'Accept-Ranges',
+    'Content-Range',
+    'Content-Length'
+  ],
+  exposedHeaders: [
+    'Accept-Ranges',
+    'Content-Range',
+    'Content-Length',
+    'Content-Type'
+  ]
 }));
 
 // Body parsing middleware

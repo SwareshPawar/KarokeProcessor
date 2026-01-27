@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { FaYoutube, FaSpinner, FaDownload, FaPlay, FaInfoCircle, FaCheckCircle } from 'react-icons/fa';
+import React, { useState, useCallback } from 'react';
+import { FaYoutube, FaSpinner, FaDownload, FaPlay, FaInfoCircle, FaCheckCircle, FaExchangeAlt, FaMusic, FaVolumeUp } from 'react-icons/fa';
+import { Range } from 'react-range';
 import toast from 'react-hot-toast';
 import ApiService from '../services/api';
 
@@ -9,6 +10,16 @@ const YouTube = ({ setCurrentAudio }) => {
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [validating, setValidating] = useState(false);
+  const [downloadedAudio, setDownloadedAudio] = useState(null);
+  const [analyzedAudio, setAnalyzedAudio] = useState(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [semitones, setSemitones] = useState(0);
+  const [processing, setProcessing] = useState(false);
+  const [transposedAudio, setTransposedAudio] = useState(null);
+  const [isPlayingOriginal, setIsPlayingOriginal] = useState(false);
+  const [isPlayingTransposed, setIsPlayingTransposed] = useState(false);
+  const [originalAudioRef, setOriginalAudioRef] = useState(null);
+  const [transposedAudioRef, setTransposedAudioRef] = useState(null);
 
   const validateUrl = async () => {
     if (!url.trim()) {
@@ -84,34 +95,128 @@ const YouTube = ({ setCurrentAudio }) => {
         videoInfo: response.data.videoInfo
       };
 
+      setDownloadedAudio(audioData);
       setCurrentAudio(audioData);
       toast.success(`Successfully downloaded audio from "${response.data.videoInfo.title}"`);
       
+      // Auto-analyze the downloaded audio
+      analyzeAudio(audioData);
     } catch (error) {
       const errorInfo = ApiService.handleApiError(error);
-      
-      if (errorInfo.type === 'timeout') {
-        toast.error('Download timed out. The video might be too long.');
-      } else if (errorInfo.type === 'notfound') {
-        toast.error('Video not found or unavailable');
-      } else {
-        toast.error(errorInfo.message);
-      }
+      toast.error(`Download failed: ${errorInfo.message}`);
     } finally {
       setDownloading(false);
     }
   };
 
-  const formatDuration = (seconds) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const remainingSeconds = seconds % 60;
+  const analyzeAudio = useCallback(async (audioData = downloadedAudio) => {
+    if (!audioData?.filename) return;
 
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-    } else {
-      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    setAnalyzing(true);
+    try {
+      const response = await ApiService.analyzeAudio(audioData.filename);
+      setAnalyzedAudio(response.data);
+    } catch (error) {
+      const errorInfo = ApiService.handleApiError(error);
+      toast.error(`Analysis failed: ${errorInfo.message}`);
+    } finally {
+      setAnalyzing(false);
     }
+  }, [downloadedAudio]);
+
+  const transposeAudio = async () => {
+    if (!downloadedAudio?.filename) {
+      toast.error('No audio file downloaded');
+      return;
+    }
+
+    if (semitones === 0) {
+      toast.error('Please select a transposition amount');
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const originalKey = analyzedAudio?.keyInfo?.key;
+      const mode = analyzedAudio?.keyInfo?.mode;
+
+      const response = await ApiService.transposeAudio(
+        downloadedAudio.filename,
+        semitones,
+        originalKey,
+        mode
+      );
+
+      setTransposedAudio({
+        ...response.data,
+        semitones: semitones,
+        originalKey: originalKey,
+        mode: mode
+      });
+
+      toast.success(`Successfully transposed by ${Math.abs(semitones)} semitones ${semitones > 0 ? 'up' : 'down'}`);
+    } catch (error) {
+      const errorInfo = ApiService.handleApiError(error);
+      toast.error(`Transposition failed: ${errorInfo.message}`);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const toggleOriginalAudio = () => {
+    if (!originalAudioRef || !downloadedAudio?.filename) return;
+    
+    if (isPlayingOriginal) {
+      originalAudioRef.pause();
+      setIsPlayingOriginal(false);
+    } else {
+      if (isPlayingTransposed && transposedAudioRef) {
+        transposedAudioRef.pause();
+        setIsPlayingTransposed(false);
+      }
+      originalAudioRef.play();
+      setIsPlayingOriginal(true);
+    }
+  };
+
+  const toggleTransposedAudio = () => {
+    if (!transposedAudioRef || !transposedAudio?.transposedFile) return;
+    
+    if (isPlayingTransposed) {
+      transposedAudioRef.pause();
+      setIsPlayingTransposed(false);
+    } else {
+      if (isPlayingOriginal && originalAudioRef) {
+        originalAudioRef.pause();
+        setIsPlayingOriginal(false);
+      }
+      transposedAudioRef.play();
+      setIsPlayingTransposed(true);
+    }
+  };
+
+  const calculateNewKey = (originalKey, mode, semitones) => {
+    if (!originalKey) return null;
+
+    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const flatNotes = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+    
+    let noteIndex = notes.indexOf(originalKey);
+    if (noteIndex === -1) {
+      noteIndex = flatNotes.indexOf(originalKey);
+    }
+    
+    if (noteIndex === -1) return originalKey;
+
+    const newIndex = (noteIndex + semitones + 12) % 12;
+    return semitones >= 0 ? notes[newIndex] : flatNotes[newIndex];
+  };
+
+  const formatDuration = (seconds) => {
+    if (!seconds) return '0:00';
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   const formatNumber = (num) => {
@@ -269,6 +374,215 @@ const YouTube = ({ setCurrentAudio }) => {
               )}
             </div>
           </div>
+        )}
+
+        {/* Downloaded Audio Player and Transposition */}
+        {downloadedAudio && (
+          <>
+            <div className="card mt-6">
+              <h2 className="text-xl font-semibold mb-4">
+                <FaMusic /> Downloaded Audio
+              </h2>
+              
+              <div className="audio-info">
+                <h3 className="audio-title">
+                  {downloadedAudio.originalName || downloadedAudio.videoInfo?.title}
+                </h3>
+                
+                {analyzedAudio && (
+                  <div className="audio-details">
+                    <div className="audio-detail">
+                      <span className="detail-label">Duration:</span>
+                      <span className="detail-value">
+                        {formatDuration(analyzedAudio.metadata?.duration || downloadedAudio.videoInfo?.duration)}
+                      </span>
+                    </div>
+                    <div className="audio-detail">
+                      <span className="detail-label">Detected Key:</span>
+                      <span className="detail-value">
+                        {analyzedAudio.keyInfo?.key} {analyzedAudio.keyInfo?.mode}
+                        {analyzedAudio.keyInfo?.confidence && 
+                          ` (${Math.round(analyzedAudio.keyInfo.confidence * 100)}% confidence)`
+                        }
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {analyzing && (
+                  <div className="flex items-center gap-2 mt-4">
+                    <FaSpinner className="spinner" />
+                    <span>Analyzing audio...</span>
+                  </div>
+                )}
+
+                {/* Original Audio Player */}
+                <div className="audio-player-section">
+                  <div className="audio-player-header">
+                    <h4>Original Audio</h4>
+                    <button 
+                      onClick={toggleOriginalAudio}
+                      className={`play-button ${isPlayingOriginal ? 'playing' : ''}`}
+                      disabled={!downloadedAudio?.filename}
+                    >
+                      {isPlayingOriginal ? <FaVolumeUp /> : <FaMusic />}
+                      {isPlayingOriginal ? 'Playing...' : 'Play Original'}
+                    </button>
+                  </div>
+                  <audio
+                    ref={setOriginalAudioRef}
+                    onEnded={() => setIsPlayingOriginal(false)}
+                    onPause={() => setIsPlayingOriginal(false)}
+                    onPlay={() => setIsPlayingOriginal(true)}
+                    controls
+                    className="audio-controls"
+                    src={downloadedAudio?.filename ? `http://localhost:3001/api/audio/stream/${downloadedAudio.filename}` : ''}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Transposition Controls */}
+            <div className="transpose-controls">
+              <h2 className="transpose-title">
+                <FaExchangeAlt /> Transposition Settings
+              </h2>
+              
+              <div className="semitone-slider">
+                <label className="form-label text-center">
+                  Semitones: {semitones > 0 ? '+' : ''}{semitones}
+                </label>
+                
+                <div className="slider-container">
+                  <Range
+                    step={1}
+                    min={-12}
+                    max={12}
+                    values={[semitones]}
+                    onChange={(values) => setSemitones(values[0])}
+                    renderTrack={({ props, children }) => {
+                      const { key, ...otherProps } = props;
+                      return (
+                        <div
+                          key={key || 'range-track'}
+                          {...otherProps}
+                          style={{
+                            ...otherProps.style,
+                            height: '6px',
+                            width: '100%',
+                            backgroundColor: '#e5e7eb',
+                            borderRadius: '3px'
+                          }}
+                        >
+                          {Array.isArray(children) 
+                            ? children.map((child, index) => 
+                                React.cloneElement(child, { key: `track-child-${index}` })
+                              )
+                            : children
+                          }
+                        </div>
+                      );
+                    }}
+                    renderThumb={({ props, index }) => {
+                      const { key, ...otherProps } = props;
+                      return (
+                        <div
+                          key={key || `thumb-${index || 0}`}
+                          {...otherProps}
+                          style={{
+                            ...otherProps.style,
+                            height: '20px',
+                            width: '20px',
+                            borderRadius: '50%',
+                            backgroundColor: '#4f46e5',
+                            border: '2px solid white',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                          }}
+                        />
+                      );
+                    }}
+                  />
+                  
+                  <div className="slider-labels">
+                    <span>-12 (Octave Down)</span>
+                    <span>0 (Original)</span>
+                    <span>+12 (Octave Up)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Key Display */}
+              {analyzedAudio?.keyInfo && (
+                <div className="current-key-display">
+                  <div className="key-info">
+                    <div className="original-key">
+                      <div className="key-label">Original Key</div>
+                      <div className="key-value">{analyzedAudio.keyInfo.key}</div>
+                      <div className="key-mode">{analyzedAudio.keyInfo.mode}</div>
+                    </div>
+                    
+                    <div className="key-arrow">→</div>
+                    
+                    <div className="new-key">
+                      <div className="key-label">New Key</div>
+                      <div className="key-value">
+                        {calculateNewKey(analyzedAudio.keyInfo.key, analyzedAudio.keyInfo.mode, semitones)}
+                      </div>
+                      <div className="key-mode">{analyzedAudio.keyInfo.mode}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="transpose-buttons">
+                <button 
+                  onClick={transposeAudio}
+                  disabled={processing || semitones === 0}
+                  className="btn btn-primary"
+                >
+                  {processing ? (
+                    <><FaSpinner className="spinner" /> Processing...</>
+                  ) : (
+                    <><FaExchangeAlt /> Transpose Audio</>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Transposed Audio Player */}
+            {transposedAudio && (
+              <div className="card mt-6">
+                <h2 className="text-xl font-semibold mb-4">
+                  <FaExchangeAlt /> Transposed Audio ({transposedAudio.semitones > 0 ? '+' : ''}{transposedAudio.semitones} semitones)
+                </h2>
+                
+                <div className="audio-player-section">
+                  <div className="audio-player-header">
+                    <h4>
+                      Transposed to {calculateNewKey(transposedAudio.originalKey, transposedAudio.mode, transposedAudio.semitones)} {transposedAudio.mode}
+                    </h4>
+                    <button 
+                      onClick={toggleTransposedAudio}
+                      className={`play-button ${isPlayingTransposed ? 'playing' : ''}`}
+                      disabled={!transposedAudio?.transposedFile}
+                    >
+                      {isPlayingTransposed ? <FaVolumeUp /> : <FaMusic />}
+                      {isPlayingTransposed ? 'Playing...' : 'Play Transposed'}
+                    </button>
+                  </div>
+                  <audio
+                    ref={setTransposedAudioRef}
+                    onEnded={() => setIsPlayingTransposed(false)}
+                    onPause={() => setIsPlayingTransposed(false)}
+                    onPlay={() => setIsPlayingTransposed(true)}
+                    controls
+                    className="audio-controls"
+                    src={transposedAudio?.transposedFile ? `http://localhost:3001/api/audio/stream/${transposedAudio.transposedFile}` : ''}
+                  />
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* Supported URL Formats */}
