@@ -2,6 +2,7 @@ services:
   - type: web
     name: karaoke-processor
     env: node
+    runtime: node
     buildCommand: |
       # Install system dependencies
       sudo apt-get update
