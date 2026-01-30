@@ -84,6 +84,8 @@ class AudioPlayerService {
   }
 
   async loadSong(song) {
+    let audioFile; // Declare in function scope for error logging
+    
     try {
       // Stop current playbook
       this.pause();
@@ -95,7 +97,7 @@ class AudioPlayerService {
       await storageService.init();
       
       // Get audio file from IndexedDB (this returns the full audio file object)
-      const audioFile = await storageService.getAudioFile(song.id);
+      audioFile = await storageService.getAudioFile(song.id);
       
       if (audioFile && audioFile.blob) {
         // Create URL from blob for local files
@@ -119,7 +121,7 @@ class AudioPlayerService {
     } catch (error) {
       console.error('Failed to load song:', error);
       console.error('Song object:', song);
-      if (typeof audioFile !== 'undefined') {
+      if (audioFile) {
         console.error('Audio file result:', audioFile);
       }
       this.notifyListeners('error', error);
