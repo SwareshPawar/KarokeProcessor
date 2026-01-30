@@ -3,6 +3,7 @@ import { FaYoutube, FaSpinner, FaDownload, FaPlay, FaInfoCircle, FaCheckCircle, 
 import { Range } from 'react-range';
 import toast from 'react-hot-toast';
 import ApiService from '../services/api';
+import { getStreamUrl } from '../utils/api';
 
 const YouTube = ({ setCurrentAudio }) => {
   const [url, setUrl] = useState('');
@@ -163,35 +164,59 @@ const YouTube = ({ setCurrentAudio }) => {
     }
   };
 
-  const toggleOriginalAudio = () => {
+  const toggleOriginalAudio = async () => {
     if (!originalAudioRef || !downloadedAudio?.filename) return;
     
     if (isPlayingOriginal) {
       originalAudioRef.pause();
       setIsPlayingOriginal(false);
     } else {
-      if (isPlayingTransposed && transposedAudioRef) {
-        transposedAudioRef.pause();
-        setIsPlayingTransposed(false);
+      try {
+        if (isPlayingTransposed && transposedAudioRef) {
+          transposedAudioRef.pause();
+          setIsPlayingTransposed(false);
+        }
+        
+        const audioSrc = getStreamUrl(downloadedAudio.filename);
+        if (originalAudioRef.src !== audioSrc) {
+          originalAudioRef.src = audioSrc;
+          await originalAudioRef.load();
+        }
+        
+        await originalAudioRef.play();
+        setIsPlayingOriginal(true);
+      } catch (error) {
+        console.error('Error playing original audio:', error);
+        toast.error('Failed to play audio');
       }
-      originalAudioRef.play();
-      setIsPlayingOriginal(true);
     }
   };
 
-  const toggleTransposedAudio = () => {
+  const toggleTransposedAudio = async () => {
     if (!transposedAudioRef || !transposedAudio?.transposedFile) return;
     
     if (isPlayingTransposed) {
       transposedAudioRef.pause();
       setIsPlayingTransposed(false);
     } else {
-      if (isPlayingOriginal && originalAudioRef) {
-        originalAudioRef.pause();
-        setIsPlayingOriginal(false);
+      try {
+        if (isPlayingOriginal && originalAudioRef) {
+          originalAudioRef.pause();
+          setIsPlayingOriginal(false);
+        }
+        
+        const audioSrc = getStreamUrl(transposedAudio.transposedFile);
+        if (transposedAudioRef.src !== audioSrc) {
+          transposedAudioRef.src = audioSrc;
+          await transposedAudioRef.load();
+        }
+        
+        await transposedAudioRef.play();
+        setIsPlayingTransposed(true);
+      } catch (error) {
+        console.error('Error playing transposed audio:', error);
+        toast.error('Failed to play transposed audio');
       }
-      transposedAudioRef.play();
-      setIsPlayingTransposed(true);
     }
   };
 
@@ -436,7 +461,6 @@ const YouTube = ({ setCurrentAudio }) => {
                     onPlay={() => setIsPlayingOriginal(true)}
                     controls
                     className="audio-controls"
-                    src={downloadedAudio?.filename ? `http://localhost:3001/api/audio/stream/${downloadedAudio.filename}` : ''}
                   />
                 </div>
               </div>
@@ -577,7 +601,6 @@ const YouTube = ({ setCurrentAudio }) => {
                     onPlay={() => setIsPlayingTransposed(true)}
                     controls
                     className="audio-controls"
-                    src={transposedAudio?.transposedFile ? `http://localhost:3001/api/audio/stream/${transposedAudio.transposedFile}` : ''}
                   />
                 </div>
               </div>

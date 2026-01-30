@@ -1,17 +1,19 @@
 services:
   - type: web
     name: karaoke-processor
-    runtime: docker
-    dockerfilePath: ./Dockerfile
+    env: node
+    buildCommand: chmod +x build.sh && ./build.sh
+    startCommand: cd backend && npm start
     plan: starter
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 3001
+        value: 10000
       - key: FRONTEND_URL
-        value: https://karaoke-processor.onrender.com
+        from: service
+        property: url
     # Add your environment variables here:
     # - key: GOOGLE_CLIENT_ID
     #   value: your-google-client-id

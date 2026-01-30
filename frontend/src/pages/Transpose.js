@@ -3,6 +3,7 @@ import { Range } from 'react-range';
 import { FaExchangeAlt, FaMusic, FaDownload, FaSpinner, FaVolumeUp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import ApiService from '../services/api';
+import { getStreamUrl } from '../utils/api';
 
 const Transpose = ({ currentAudio, setCurrentAudio }) => {
   const [semitones, setSemitones] = useState(0);
@@ -172,7 +173,7 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
         }
         
         // Ensure the audio source is set
-        const audioSrc = `http://localhost:3001/api/audio/stream/${currentAudio.filename}`;
+        const audioSrc = getStreamUrl(currentAudio.filename);
         if (originalAudioRef.src !== audioSrc) {
           originalAudioRef.src = audioSrc;
           await originalAudioRef.load();
@@ -202,7 +203,7 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
         }
         
         // Ensure the audio source is set
-        const audioSrc = `http://localhost:3001/api/audio/stream/${transposedAudio.transposedFile}`;
+        const audioSrc = getStreamUrl(transposedAudio.transposedFile);
         if (transposedAudioRef.src !== audioSrc) {
           transposedAudioRef.src = audioSrc;
           await transposedAudioRef.load();
