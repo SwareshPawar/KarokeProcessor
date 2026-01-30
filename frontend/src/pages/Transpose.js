@@ -174,6 +174,15 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
           type: audioFile.blob.type || 'audio/mpeg'
         });
         
+        // Validate file size before upload - different limits for different platforms
+        const platform = process.env.REACT_APP_PLATFORM || 'local';
+        const maxSize = platform === 'vercel' ? 4 * 1024 * 1024 : 50 * 1024 * 1024; // 4MB for Vercel, 50MB for others
+        const sizeLimit = platform === 'vercel' ? '4MB' : '50MB';
+        
+        if (file.size > maxSize) {
+          throw new Error(`File size exceeds ${sizeLimit} limit for ${platform} deployment. Please use a smaller audio file.`);
+        }
+        
         console.log('📤 Uploading file for analysis:', {
           name: file.name,
           size: file.size,
@@ -211,8 +220,8 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
       const errorInfo = ApiService.handleApiError(error);
       
       // More specific error messages - safely check error messages
-      const errorMessage = error.message || '';
-      const apiErrorMessage = errorInfo.message || '';
+      const errorMessage = (error.message || '').toString();
+      const apiErrorMessage = (errorInfo.message || '').toString();
       
       if (errorMessage.includes('Audio file not found in local storage')) {
         toast.error('Audio file not found. Please re-upload the file.');
@@ -222,7 +231,7 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
         toast.error('Audio file data is incomplete. Please re-upload the file.');
       } else if (apiErrorMessage.includes('Audio file not found')) {
         toast.error('Analysis failed: File needs to be re-uploaded to server');
-      } else if (errorInfo.type === 'filesize') {
+      } else if (errorInfo.type === 'filesize' || apiErrorMessage.includes('exceeds 4MB limit')) {
         toast.error('File too large. Please use a smaller audio file (max 4MB for Vercel deployment).');
       } else {
         toast.error(`Analysis failed: ${apiErrorMessage || 'Unknown error occurred'}`);
@@ -286,6 +295,15 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
           type: audioFile.blob.type || 'audio/mpeg'
         });
         
+        // Validate file size before upload - different limits for different platforms
+        const platform = process.env.REACT_APP_PLATFORM || 'local';
+        const maxSize = platform === 'vercel' ? 4 * 1024 * 1024 : 50 * 1024 * 1024; // 4MB for Vercel, 50MB for others
+        const sizeLimit = platform === 'vercel' ? '4MB' : '50MB';
+        
+        if (file.size > maxSize) {
+          throw new Error(`File size exceeds ${sizeLimit} limit for ${platform} deployment. Please use a smaller audio file.`);
+        }
+        
         console.log('📤 Uploading file for processing:', {
           name: file.name,
           size: file.size,
@@ -343,8 +361,8 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
       const errorInfo = ApiService.handleApiError(error);
       
       // More specific error messages - safely check error messages
-      const errorMessage = error.message || '';
-      const apiErrorMessage = errorInfo.message || '';
+      const errorMessage = (error.message || '').toString();
+      const apiErrorMessage = (errorInfo.message || '').toString();
       
       if (errorMessage.includes('Audio file not found in local storage')) {
         toast.error('Audio file not found. Please re-upload the file.');
@@ -352,7 +370,7 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
         toast.error('Audio file appears to be corrupted. Please re-upload.');
       } else if (apiErrorMessage.includes('Audio file not found')) {
         toast.error('Transposition failed: File needs to be re-uploaded to server');
-      } else if (errorInfo.type === 'filesize') {
+      } else if (errorInfo.type === 'filesize' || apiErrorMessage.includes('exceeds 4MB limit')) {
         toast.error('File too large. Please use a smaller audio file (max 4MB for Vercel deployment).');
       } else {
         toast.error(`Transposition failed: ${apiErrorMessage || 'Unknown error occurred'}`);
