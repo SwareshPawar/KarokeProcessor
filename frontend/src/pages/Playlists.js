@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FaMusic, FaPlus, FaPlay, FaPause, FaList, FaShuffle, FaRepeat, FaTrash, FaEdit, FaDownload, FaCloud } from 'react-icons/fa';
+import { FaMusic, FaPlus, FaPlay, FaPause, FaList, FaRandom, FaRepeat, FaTrash, FaEdit, FaDownload, FaCloud } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import playlistService from '../services/playlistService';
 import audioPlayerService from '../services/audioPlayerService';
@@ -311,7 +311,7 @@ const Playlists = () => {
                       className={`btn ${playerState.shuffle ? 'btn-primary' : 'btn-secondary'}`}
                       disabled={playlistSongs.length === 0}
                     >
-                      <FaShuffle /> Shuffle
+                      <FaRandom /> Shuffle
                     </button>
                   </div>
                 </div>
