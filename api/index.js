@@ -7,9 +7,9 @@ const path = require('path');
 const fs = require('fs');
 
 // Import routes
-const audioRoutes = require('./routes/audio');
-const googleDriveRoutes = require('./routes/googleDrive');
-const youtubeRoutes = require('./routes/youtube');
+const audioRoutes = require('../backend/src/routes/audio');
+const googleDriveRoutes = require('../backend/src/routes/googleDrive');
+const youtubeRoutes = require('../backend/src/routes/youtube');
 
 const app = express();
 

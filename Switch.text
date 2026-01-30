@@ -5,4 +5,4 @@ npx vercel --prod
 
 
 .\deploy-render.bat
-git add . && git commit -m "Deploy to Render" && git push origin main
+git add . && git commit -m "Switch to Render" && git push origin main
