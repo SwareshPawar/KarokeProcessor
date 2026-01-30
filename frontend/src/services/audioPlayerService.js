@@ -129,6 +129,17 @@ class AudioPlayerService {
       console.log('🎵 Loading song:', song);
       console.log('🆔 Song ID:', song?.id);
       
+      // Validate song object
+      if (!song) {
+        throw new Error('Song object is null or undefined');
+      }
+      
+      if (!song.id) {
+        throw new Error('Song object missing required "id" field');
+      }
+      
+      console.log('✅ Song validation passed');
+      
       // Stop current playback
       this.pause();
       
@@ -250,10 +261,19 @@ class AudioPlayerService {
   }
 
   async setPlaylist(songs, startIndex = 0) {
+    console.log('🎵 setPlaylist called with:', {
+      songsCount: songs.length,
+      startIndex,
+      firstSong: songs[0],
+      firstSongKeys: songs[0] ? Object.keys(songs[0]) : 'none'
+    });
+    
     this.playlist = songs;
     this.currentIndex = Math.max(0, Math.min(startIndex, songs.length - 1));
     
     if (songs.length > 0) {
+      console.log('🎯 About to load song at index:', this.currentIndex);
+      console.log('🎵 Song to load:', songs[this.currentIndex]);
       await this.loadSong(songs[this.currentIndex]);
     }
   }
