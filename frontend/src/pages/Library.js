@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaHdd, FaTrash, FaDownload, FaUpload, FaSync, FaCloud, FaMusic, FaPlay, FaPause, FaStop, FaPlus, FaList } from 'react-icons/fa';
+import { FaHdd, FaTrash, FaDownload, FaUpload, FaSync, FaCloud, FaMusic, FaPlay, FaPause, FaStop, FaPlus, FaList, FaEdit, FaCheck, FaTimes } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import localStorageService from '../services/localStorageService';
 import audioPlayerService from '../services/audioPlayerService';
@@ -17,6 +17,10 @@ const Library = () => {
   const [playerState, setPlayerState] = useState(audioPlayerService.getState());
   const [playlists, setPlaylists] = useState([]);
   const [showAddToPlaylist, setShowAddToPlaylist] = useState(null);
+  const [editingSong, setEditingSong] = useState(null);
+  const [newTitle, setNewTitle] = useState('');
+  const [showDeleteUnused, setShowDeleteUnused] = useState(false);
+  const [unusedSongs, setUnusedSongs] = useState([]);
 
   useEffect(() => {
     loadLibrary();
@@ -179,6 +183,86 @@ const Library = () => {
     } catch (error) {
       console.error('Error deleting files:', error);
       toast.error('Failed to delete selected files');
+    }
+  };
+
+  const findUnusedSongs = async () => {
+    try {
+      const usedSongIds = await playlistService.getSongsUsedInPlaylists();
+      const unused = await localStorageService.getSongsNotInPlaylists(usedSongIds);
+      setUnusedSongs(unused);
+      setShowDeleteUnused(true);
+    } catch (error) {
+      console.error('Error finding unused songs:', error);
+      toast.error('Failed to find unused songs');
+    }
+  };
+
+  const deleteUnusedSongs = async () => {
+    try {
+      for (const song of unusedSongs) {
+        await localStorageService.deleteAudioFile(song.id);
+      }
+      setUnusedSongs([]);
+      setShowDeleteUnused(false);
+      await loadLibrary();
+      await loadStorageStats();
+      toast.success(`${unusedSongs.length} unused song(s) deleted successfully`);
+    } catch (error) {
+      console.error('Error deleting unused songs:', error);
+      toast.error('Failed to delete unused songs');
+    }
+  };
+
+  const startEditingSong = (song) => {
+    setEditingSong(song);
+    setNewTitle(song.title || song.filename);
+  };
+
+  const cancelEditingSong = () => {
+    setEditingSong(null);
+    setNewTitle('');
+  };
+
+  const saveSongTitle = async () => {
+    if (!editingSong || !newTitle.trim()) {
+      toast.error('Please enter a valid title');
+      return;
+    }
+
+    try {
+      await localStorageService.updateSongTitle(editingSong.id, newTitle.trim());
+      await loadLibrary(); // Refresh the library
+      setEditingSong(null);
+      setNewTitle('');
+      toast.success('Song title updated successfully');
+    } catch (error) {
+      console.error('Error updating song title:', error);
+      toast.error('Failed to update song title');
+    }
+  };
+
+  const deleteFileWithWarning = async (fileId) => {
+    try {
+      // Check if song is used in any playlists
+      const playlistsWithSong = await playlistService.getPlaylistsContainingSong(fileId);
+      
+      if (playlistsWithSong.length > 0) {
+        const playlistNames = playlistsWithSong.map(p => p.name).join(', ');
+        const confirmDelete = window.confirm(
+          `Warning: This song is used in the following playlist(s): ${playlistNames}\n\n` +
+          'Deleting this song will remove it from all playlists. Do you want to continue?'
+        );
+        
+        if (!confirmDelete) {
+          return;
+        }
+      }
+
+      await deleteFile(fileId);
+    } catch (error) {
+      console.error('Error checking song usage:', error);
+      toast.error('Failed to delete song');
     }
   };
 
@@ -363,6 +447,10 @@ const Library = () => {
                 </button>
               )}
               
+              <button onClick={findUnusedSongs} className="btn btn-warning me-2">
+                <FaTrash /> Delete Unused Songs
+              </button>
+              
               <button onClick={exportLibrary} className="btn btn-primary">
                 <FaDownload /> Export Library
               </button>
@@ -405,7 +493,45 @@ const Library = () => {
                 </div>
                 
                 <div className="file-info">
-                  <h3 className="file-title">{file.title}</h3>
+                  {editingSong?.id === file.id ? (
+                    <div className="edit-title-form">
+                      <input
+                        type="text"
+                        value={newTitle}
+                        onChange={(e) => setNewTitle(e.target.value)}
+                        className="form-control form-control-sm mb-2"
+                        autoFocus
+                        onKeyPress={(e) => e.key === 'Enter' && saveSongTitle()}
+                      />
+                      <div className="edit-actions">
+                        <button 
+                          onClick={saveSongTitle}
+                          className="btn btn-sm btn-success me-1"
+                          title="Save"
+                        >
+                          <FaCheck />
+                        </button>
+                        <button 
+                          onClick={cancelEditingSong}
+                          className="btn btn-sm btn-secondary"
+                          title="Cancel"
+                        >
+                          <FaTimes />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="title-display">
+                      <h3 className="file-title">{file.title}</h3>
+                      <button 
+                        onClick={() => startEditingSong(file)}
+                        className="btn btn-sm btn-outline-secondary edit-title-btn"
+                        title="Edit Title"
+                      >
+                        <FaEdit />
+                      </button>
+                    </div>
+                  )}
                   <p className="file-details">
                     {formatFileSize(file.size)} • {formatDuration(file.metadata?.duration)}
                   </p>
@@ -454,7 +580,7 @@ const Library = () => {
                     <FaSync />
                   </button>
                   <button 
-                    onClick={() => deleteFile(file.id)}
+                    onClick={() => deleteFileWithWarning(file.id)}
                     className="btn btn-sm btn-danger"
                     title="Delete"
                   >
@@ -502,6 +628,69 @@ const Library = () => {
                         <FaPlus />
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Unused Songs Modal */}
+        {showDeleteUnused && (
+          <div className="modal-overlay" onClick={() => setShowDeleteUnused(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Delete Unused Songs</h2>
+                <button 
+                  onClick={() => setShowDeleteUnused(false)}
+                  className="modal-close"
+                >×</button>
+              </div>
+              
+              <div className="modal-body">
+                {unusedSongs.length === 0 ? (
+                  <div className="text-center">
+                    <FaMusic className="text-4xl text-success opacity-75 mb-4" />
+                    <p>Great! All your songs are being used in playlists.</p>
+                    <p>No unused songs to delete.</p>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="alert alert-warning mb-3">
+                      <strong>Found {unusedSongs.length} song(s) not used in any playlist.</strong>
+                      <p className="mb-0 mt-2">These songs will be permanently deleted from your library. This action cannot be undone.</p>
+                    </div>
+                    
+                    <div className="unused-songs-list" style={{maxHeight: '300px', overflowY: 'auto'}}>
+                      {unusedSongs.map(song => (
+                        <div key={song.id} className="unused-song-item p-2 border-bottom">
+                          <div className="d-flex justify-content-between align-items-center">
+                            <div>
+                              <strong>{song.title}</strong>
+                              <small className="text-muted d-block">{formatFileSize(song.size)}</small>
+                            </div>
+                            <small className="text-muted">
+                              Added: {new Date(song.dateAdded).toLocaleDateString()}
+                            </small>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="modal-actions mt-3 d-flex justify-content-end gap-2">
+                      <button 
+                        onClick={() => setShowDeleteUnused(false)}
+                        className="btn btn-secondary"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        onClick={deleteUnusedSongs}
+                        className="btn btn-danger"
+                      >
+                        <FaTrash /> Delete {unusedSongs.length} Song(s)
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

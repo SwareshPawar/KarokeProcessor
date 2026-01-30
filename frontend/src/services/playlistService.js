@@ -319,6 +319,41 @@ class PlaylistService {
         (allPlaylists.reduce((sum, playlist) => sum + playlist.songCount, 0) / allPlaylists.length).toFixed(1) : 0
     };
   }
+
+  // Get all song IDs used in any playlist
+  async getSongsUsedInPlaylists() {
+    await this.init();
+    const transaction = this.db.transaction([this.playlistStoreName], 'readonly');
+    const store = transaction.objectStore(this.playlistStoreName);
+    
+    const allPlaylists = await new Promise((resolve, reject) => {
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    
+    const usedSongIds = new Set();
+    allPlaylists.forEach(playlist => {
+      playlist.songs.forEach(songId => usedSongIds.add(songId));
+    });
+    
+    return Array.from(usedSongIds);
+  }
+
+  // Get playlists that contain a specific song
+  async getPlaylistsContainingSong(songId) {
+    await this.init();
+    const transaction = this.db.transaction([this.playlistStoreName], 'readonly');
+    const store = transaction.objectStore(this.playlistStoreName);
+    
+    const allPlaylists = await new Promise((resolve, reject) => {
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    
+    return allPlaylists.filter(playlist => playlist.songs.includes(songId));
+  }
 }
 
 const playlistService = new PlaylistService();

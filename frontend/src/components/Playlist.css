@@ -643,3 +643,53 @@
   z-index: 1001;
   animation: slideIn 0.3s ease-out;
 }
+
+/* Library Edit Song Styles */
+.title-display {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.edit-title-btn {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+}
+
+.audio-file-card:hover .edit-title-btn {
+  opacity: 1;
+}
+
+.edit-title-form {
+  margin-bottom: 10px;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.unused-song-item {
+  background: #f8f9fa;
+  border-radius: 4px;
+  margin-bottom: 5px;
+}
+
+.unused-song-item:last-child {
+  border-bottom: none !important;
+}
+
+.modal-actions {
+  border-top: 1px solid #dee2e6;
+  padding-top: 15px;
+}
+
+.alert-warning {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  color: #856404;
+  padding: 12px;
+  border-radius: 4px;
+}

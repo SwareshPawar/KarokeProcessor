@@ -299,6 +299,38 @@ class LocalStorageService {
     return this.promisifyRequest(store.getAll());
   }
 
+  // Get songs not used in any playlist
+  async getSongsNotInPlaylists(usedSongIds) {
+    if (!this.db) await this.init();
+    
+    const allSongs = await this.getAllAudioFiles();
+    return allSongs.filter(song => !usedSongIds.includes(song.id));
+  }
+
+  // Update song title and trigger UI updates
+  async updateSongTitle(songId, newTitle) {
+    if (!this.db) await this.init();
+    
+    const existingSong = await this.getAudioFile(songId);
+    if (!existingSong) {
+      throw new Error('Song not found');
+    }
+
+    // Update the song metadata
+    await this.updateAudioFileMetadata(songId, {
+      title: newTitle,
+      filename: newTitle // Also update filename to match title
+    });
+
+    // Trigger update events for UI refresh
+    this.updateStorageStats();
+    window.dispatchEvent(new CustomEvent('songTitleUpdated', { 
+      detail: { songId, newTitle } 
+    }));
+
+    return await this.getAudioFile(songId);
+  }
+
   updateStorageStats() {
     // Emit custom event for UI to update
     window.dispatchEvent(new CustomEvent('storageUpdated'));
