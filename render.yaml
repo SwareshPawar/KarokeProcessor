@@ -23,6 +23,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: REACT_APP_RENDER
+        value: "1"
       - key: PORT
         value: 10000
       - key: FRONTEND_URL
