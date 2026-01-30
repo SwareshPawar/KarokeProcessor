@@ -86,6 +86,11 @@ echo 4. In a new terminal, start the frontend:
 echo    cd frontend && npm start
 echo 5. Open http://localhost:3000 in your browser
 echo.
+echo 🐳 Docker Alternative (optional):
+echo 1. Rename Dockerfile.local to Dockerfile
+echo 2. Run: docker build -t karaoke-processor .
+echo 3. Run: docker run -p 3001:3001 karaoke-processor
+echo.
 echo 📖 For detailed setup instructions, see README.md
 echo.
 echo 🔐 Google Drive Integration Setup:
