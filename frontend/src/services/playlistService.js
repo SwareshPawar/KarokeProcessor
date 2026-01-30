@@ -149,6 +149,7 @@ class PlaylistService {
     }
 
     // Get song details to update playlist metadata
+    await localStorageService.init();
     const song = await localStorageService.getAudioFile(songId);
     
     const updatedSongs = [...playlist.songs, songId];
@@ -167,6 +168,7 @@ class PlaylistService {
       throw new Error('Playlist not found');
     }
 
+    await localStorageService.init();
     const song = await localStorageService.getAudioFile(songId);
     
     const updatedSongs = playlist.songs.filter(id => id !== songId);
@@ -186,6 +188,8 @@ class PlaylistService {
     }
 
     const songs = [];
+    
+    await localStorageService.init();
     
     for (const songId of playlist.songs) {
       try {
@@ -254,6 +258,8 @@ class PlaylistService {
     });
 
     // Add songs that exist in local storage
+    await localStorageService.init();
+    
     for (const song of playlist.songs) {
       try {
         const existingSong = await localStorageService.getAudioFile(song.id);

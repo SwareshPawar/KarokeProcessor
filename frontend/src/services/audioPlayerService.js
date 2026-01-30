@@ -87,10 +87,13 @@ class AudioPlayerService {
 
   async loadSong(song) {
     try {
-      // Stop current playback
+      // Stop current playbook
       this.pause();
       
       this.currentSong = song;
+      
+      // Ensure localStorageService is initialized
+      await localStorageService.init();
       
       // Get audio blob from IndexedDB
       const audioBlob = await localStorageService.getAudioBlob(song.id);
