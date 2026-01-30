@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Range } from 'react-range';
-import { FaExchangeAlt, FaMusic, FaDownload, FaSpinner, FaVolumeUp } from 'react-icons/fa';
+import { FaExchangeAlt, FaMusic, FaDownload, FaSpinner, FaVolumeUp, FaSave } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import ApiService from '../services/api';
+import localStorageService from '../services/localStorageService';
 import { getStreamUrl } from '../utils/api';
 
 const Transpose = ({ currentAudio, setCurrentAudio }) => {
@@ -15,6 +16,114 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
   const [isPlayingTransposed, setIsPlayingTransposed] = useState(false);
   const [originalAudioRef, setOriginalAudioRef] = useState(null);
   const [transposedAudioRef, setTransposedAudioRef] = useState(null);
+
+  // Helper function to calculate target key
+  const calculateTargetKey = (originalKey, semitones) => {
+    if (!originalKey) return `${semitones > 0 ? '+' : ''}${semitones}`;
+    
+    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const noteIndex = notes.indexOf(originalKey.replace(/m$/, ''));
+    
+    if (noteIndex === -1) return `${originalKey} ${semitones > 0 ? '+' : ''}${semitones}`;
+    
+    const targetIndex = (noteIndex + semitones + 12) % 12;
+    const targetNote = notes[targetIndex];
+    const isMinor = originalKey.endsWith('m');
+    
+    return targetNote + (isMinor ? 'm' : '');
+  };
+
+  // Function to save transposed audio to library
+  const saveTransposedToLibrary = async () => {
+    if (!transposedAudio?.transposedFile) {
+      toast.error('No transposed audio available to save');
+      return;
+    }
+
+    try {
+      // Download the transposed audio blob
+      const response = await ApiService.downloadAudio(transposedAudio.transposedFile);
+      const audioBlob = new Blob([response.data], { type: 'audio/mpeg' });
+      
+      // Calculate target key
+      const originalKey = analyzedAudio?.keyInfo?.key;
+      const targetKey = calculateTargetKey(originalKey, semitones);
+      
+      // Generate a meaningful filename
+      const originalTitle = currentAudio?.title || currentAudio?.filename?.replace(/\.[^/.]+$/, '') || 'Audio';
+      const newTitle = `${originalTitle} (${targetKey})`;
+      const newFilename = `${newTitle.replace(/[^a-zA-Z0-9\s\-_()]/g, '')}.mp3`;
+      
+      // Prepare metadata
+      const metadata = {
+        filename: newFilename,
+        title: newTitle,
+        originalName: `${originalTitle}_transposed_${targetKey}`,
+        source: 'transpose',
+        duration: currentAudio?.duration,
+        keyInfo: {
+          key: targetKey,
+          originalKey: originalKey,
+          semitones: semitones
+        }
+      };
+
+      // Save to IndexedDB
+      const savedFile = await localStorageService.storeAudioFile(audioBlob, metadata);
+      
+      toast.success(`Saved "${newTitle}" to library!`);
+      return savedFile;
+    } catch (error) {
+      console.error('Error saving transposed audio:', error);
+      toast.error('Failed to save transposed audio to library');
+    }
+  };
+
+  // Function to save transposed audio with provided data
+  const saveTransposedToLibraryWithData = async (transposedData) => {
+    if (!transposedData?.transposedFile) {
+      console.error('No transposed audio data available to save');
+      return;
+    }
+
+    try {
+      // Download the transposed audio blob
+      const response = await ApiService.downloadAudio(transposedData.transposedFile);
+      const audioBlob = new Blob([response.data], { type: 'audio/mpeg' });
+      
+      // Calculate target key
+      const originalKey = analyzedAudio?.keyInfo?.key;
+      const targetKey = calculateTargetKey(originalKey, transposedData.semitones);
+      
+      // Generate a meaningful filename
+      const originalTitle = currentAudio?.title || currentAudio?.filename?.replace(/\.[^/.]+$/, '') || 'Audio';
+      const newTitle = `${originalTitle} (${targetKey})`;
+      const newFilename = `${newTitle.replace(/[^a-zA-Z0-9\s\-_()]/g, '')}.mp3`;
+      
+      // Prepare metadata
+      const metadata = {
+        filename: newFilename,
+        title: newTitle,
+        originalName: `${originalTitle}_transposed_${targetKey}`,
+        source: 'transpose',
+        duration: currentAudio?.duration,
+        keyInfo: {
+          key: targetKey,
+          originalKey: originalKey,
+          semitones: transposedData.semitones
+        }
+      };
+
+      // Save to IndexedDB
+      const savedFile = await localStorageService.storeAudioFile(audioBlob, metadata);
+      
+      console.log(`Auto-saved "${newTitle}" to library`);
+      return savedFile;
+    } catch (error) {
+      console.error('Error auto-saving transposed audio:', error);
+      throw error;
+    }
+  };
 
   const analyzeAudio = useCallback(async () => {
     if (!currentAudio?.filename) return;
@@ -60,14 +169,24 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
         mode
       );
 
-      setTransposedAudio({
+      const transposedData = {
         ...response.data,
         semitones: semitones,
         originalKey: originalKey,
         mode: mode
-      });
+      };
+      
+      setTransposedAudio(transposedData);
 
       toast.success(`Successfully transposed by ${Math.abs(semitones)} semitones ${semitones > 0 ? 'up' : 'down'}`);
+      
+      // Auto-save to library
+      try {
+        await saveTransposedToLibraryWithData(transposedData);
+      } catch (error) {
+        console.error('Auto-save failed:', error);
+        // Don't show error toast as main transposition succeeded
+      }
     } catch (error) {
       const errorInfo = ApiService.handleApiError(error);
       toast.error(`Transposition failed: ${errorInfo.message}`);
@@ -555,6 +674,15 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
                 >
                   <FaDownload />
                   Download Transposed Audio
+                </button>
+                
+                <button
+                  onClick={saveTransposedToLibrary}
+                  className="btn btn-primary"
+                  title="Save transposed audio to your local library"
+                >
+                  <FaSave />
+                  Save to Library
                 </button>
                 
                 <button
