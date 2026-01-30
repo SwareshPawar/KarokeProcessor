@@ -173,6 +173,61 @@ const Library = () => {
 
   const deleteSelectedFiles = async () => {
     try {
+      // Check if any selected songs are used in playlists
+      const songsInPlaylists = [];
+      const safeSongsToDelete = [];
+      
+      for (const fileId of selectedFiles) {
+        const playlistsWithSong = await playlistService.getPlaylistsContainingSong(fileId);
+        if (playlistsWithSong.length > 0) {
+          const song = audioFiles.find(f => f.id === fileId);
+          const playlistNames = playlistsWithSong.map(p => p.name).join(', ');
+          songsInPlaylists.push({
+            title: song?.title || 'Unknown Song',
+            playlists: playlistNames
+          });
+        } else {
+          safeSongsToDelete.push(fileId);
+        }
+      }
+      
+      if (songsInPlaylists.length > 0) {
+        let errorMessage = `Cannot delete ${songsInPlaylists.length} song(s) because they are used in playlists:\n\n`;
+        songsInPlaylists.forEach(song => {
+          errorMessage += `• "${song.title}" (in: ${song.playlists})\n`;
+        });
+        errorMessage += '\nPlease remove these songs from their playlists first.';
+        
+        toast.error(errorMessage, {
+          duration: 8000,
+          style: {
+            background: '#dc3545',
+            color: 'white',
+            whiteSpace: 'pre-line'
+          }
+        });
+        
+        // If there are some safe songs to delete, ask user if they want to delete those
+        if (safeSongsToDelete.length > 0) {
+          const confirmPartial = window.confirm(
+            `${songsInPlaylists.length} song(s) cannot be deleted because they are in playlists.\n\n` +
+            `Would you like to delete the remaining ${safeSongsToDelete.length} song(s) that are not in any playlists?`
+          );
+          
+          if (confirmPartial) {
+            for (const fileId of safeSongsToDelete) {
+              await localStorageService.deleteAudioFile(fileId);
+            }
+            setSelectedFiles([]);
+            await loadLibrary();
+            await loadStorageStats();
+            toast.success(`${safeSongsToDelete.length} file(s) deleted successfully`);
+          }
+        }
+        return;
+      }
+
+      // All selected songs are safe to delete
       for (const fileId of selectedFiles) {
         await localStorageService.deleteAudioFile(fileId);
       }
@@ -249,14 +304,18 @@ const Library = () => {
       
       if (playlistsWithSong.length > 0) {
         const playlistNames = playlistsWithSong.map(p => p.name).join(', ');
-        const confirmDelete = window.confirm(
-          `Warning: This song is used in the following playlist(s): ${playlistNames}\n\n` +
-          'Deleting this song will remove it from all playlists. Do you want to continue?'
+        toast.error(
+          `Cannot delete this song! It is currently being used in the following playlist(s): ${playlistNames}. ` +
+          'Please remove it from all playlists first before deleting.',
+          {
+            duration: 6000,
+            style: {
+              background: '#dc3545',
+              color: 'white',
+            }
+          }
         );
-        
-        if (!confirmDelete) {
-          return;
-        }
+        return;
       }
 
       await deleteFile(fileId);
