@@ -395,7 +395,7 @@ const Playlists = () => {
                             }
                           </div>
                           
-                          <div className="song-info" onClick={() => playSong(song, playlistSongs, index)}>
+                          <div className="song-info" onClick={() => handlePlayPause(song, playlistSongs, index)}>
                             <h4 className="song-title">{song.title}</h4>
                             <p className="song-details">
                               {formatDuration(song.metadata?.duration)} • {song.source}
