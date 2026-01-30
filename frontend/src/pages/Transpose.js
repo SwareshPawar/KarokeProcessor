@@ -128,16 +128,38 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
   const analyzeAudio = useCallback(async () => {
     if (!currentAudio?.filename) return;
 
+    console.log('🔍 Starting audio analysis with currentAudio:', {
+      filename: currentAudio.filename,
+      id: currentAudio.id,
+      source: currentAudio.source,
+      serverFilename: currentAudio.serverFilename,
+      hasId: !!currentAudio.id,
+      keys: Object.keys(currentAudio)
+    });
+
     setAnalyzing(true);
     try {
       let serverFilename = currentAudio.filename;
       
       // Check if file exists on server, if not, upload it first
       if (currentAudio.source === 'upload' && !currentAudio.serverFilename) {
-        console.log('File not on server, uploading for analysis...');
+        console.log('📤 File not on server, uploading for analysis...');
+        
+        // Check if we have the ID needed for local storage lookup
+        if (!currentAudio.id) {
+          throw new Error('Current audio missing ID - cannot retrieve from local storage');
+        }
         
         // Get the file from local storage
+        console.log('🗄️ Getting audio file from local storage with ID:', currentAudio.id);
         const audioFile = await localStorageService.getAudioFile(currentAudio.id);
+        console.log('📁 Retrieved from local storage:', {
+          hasAudioFile: !!audioFile,
+          hasBlob: !!(audioFile?.blob),
+          blobSize: audioFile?.blob?.size,
+          blobType: audioFile?.blob?.type
+        });
+        
         if (!audioFile || !audioFile.blob) {
           throw new Error('Audio file not found in local storage');
         }
@@ -152,7 +174,7 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
           type: audioFile.blob.type || 'audio/mpeg'
         });
         
-        console.log('Uploading file for analysis:', {
+        console.log('📤 Uploading file for analysis:', {
           name: file.name,
           size: file.size,
           type: file.type
@@ -162,17 +184,30 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
         const uploadResponse = await ApiService.uploadAudio(file);
         serverFilename = uploadResponse.data.file.filename;
         
-        console.log('File uploaded to server for analysis:', serverFilename);
+        console.log('✅ File uploaded to server for analysis:', serverFilename);
+        
+        // Update currentAudio with serverFilename for future use
+        if (setCurrentAudio) {
+          const updatedAudio = {
+            ...currentAudio,
+            serverFilename: serverFilename
+          };
+          setCurrentAudio(updatedAudio);
+        }
+        
       } else if (currentAudio.serverFilename) {
         serverFilename = currentAudio.serverFilename;
+        console.log('📂 Using existing server filename:', serverFilename);
+      } else {
+        console.log('🤔 No server upload needed, using original filename:', serverFilename);
       }
       
-      console.log('Analyzing audio with filename:', serverFilename);
+      console.log('🔬 Analyzing audio with filename:', serverFilename);
       const response = await ApiService.analyzeAudio(serverFilename);
       setAnalyzedAudio(response.data);
-      console.log('Analysis completed successfully');
+      console.log('✅ Analysis completed successfully');
     } catch (error) {
-      console.error('Analysis error:', error);
+      console.error('❌ Analysis error:', error);
       const errorInfo = ApiService.handleApiError(error);
       
       // More specific error messages
@@ -180,6 +215,8 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
         toast.error('Audio file not found. Please re-upload the file.');
       } else if (error.message.includes('corrupted') || error.message.includes('HTML')) {
         toast.error('Audio file appears to be corrupted. Please re-upload.');
+      } else if (error.message.includes('missing ID')) {
+        toast.error('Audio file data is incomplete. Please re-upload the file.');
       } else if (errorInfo.message.includes('Audio file not found')) {
         toast.error('Analysis failed: File needs to be re-uploaded to server');
       } else {
@@ -188,7 +225,7 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
     } finally {
       setAnalyzing(false);
     }
-  }, [currentAudio?.filename, currentAudio?.source, currentAudio?.serverFilename, currentAudio?.id]);
+  }, [currentAudio?.filename, currentAudio?.source, currentAudio?.serverFilename, currentAudio?.id, setCurrentAudio]);
 
   useEffect(() => {
     if (currentAudio?.filename) {
@@ -207,13 +244,26 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
       return;
     }
 
+    console.log('🎶 Starting transpose with currentAudio:', {
+      filename: currentAudio.filename,
+      id: currentAudio.id,
+      source: currentAudio.source,
+      serverFilename: currentAudio.serverFilename,
+      semitones: semitones
+    });
+
     setProcessing(true);
     try {
       let serverFilename = currentAudio.filename;
       
       // Check if file exists on server, if not, upload it first
       if (currentAudio.source === 'upload' && !currentAudio.serverFilename) {
-        console.log('File not on server, uploading for processing...');
+        console.log('📤 File not on server, uploading for processing...');
+        
+        // Check if we have the ID needed for local storage lookup
+        if (!currentAudio.id) {
+          throw new Error('Current audio missing ID - cannot retrieve from local storage');
+        }
         
         // Get the file from local storage
         const audioFile = await localStorageService.getAudioFile(currentAudio.id);
@@ -231,7 +281,7 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
           type: audioFile.blob.type || 'audio/mpeg'
         });
         
-        console.log('Uploading file for processing:', {
+        console.log('📤 Uploading file for processing:', {
           name: file.name,
           size: file.size,
           type: file.type
@@ -241,9 +291,18 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
         const uploadResponse = await ApiService.uploadAudio(file);
         serverFilename = uploadResponse.data.file.filename;
         
-        console.log('File uploaded to server for processing:', serverFilename);
+        console.log('✅ File uploaded to server for processing:', serverFilename);
+        
+        // Update currentAudio with serverFilename for future use
+        const updatedAudio = {
+          ...currentAudio,
+          serverFilename: serverFilename
+        };
+        setCurrentAudio(updatedAudio);
+        
       } else if (currentAudio.serverFilename) {
         serverFilename = currentAudio.serverFilename;
+        console.log('📂 Using existing server filename:', serverFilename);
       }
       
       const originalKey = analyzedAudio?.keyInfo?.key;
