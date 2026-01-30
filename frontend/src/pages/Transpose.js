@@ -130,7 +130,33 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
 
     setAnalyzing(true);
     try {
-      const response = await ApiService.analyzeAudio(currentAudio.filename);
+      let serverFilename = currentAudio.filename;
+      
+      // Check if file exists on server, if not, upload it first
+      if (currentAudio.source === 'upload' && !currentAudio.serverFilename) {
+        console.log('File not on server, uploading for analysis...');
+        
+        // Get the file from local storage
+        const audioFile = await localStorageService.getAudioFile(currentAudio.id);
+        if (!audioFile || !audioFile.blob) {
+          throw new Error('Audio file not found in local storage');
+        }
+        
+        // Create File object from blob
+        const file = new File([audioFile.blob], currentAudio.filename, {
+          type: audioFile.blob.type || 'audio/mpeg'
+        });
+        
+        // Upload to server for analysis
+        const uploadResponse = await ApiService.uploadAudio(file);
+        serverFilename = uploadResponse.data.file.filename;
+        
+        console.log('File uploaded to server for analysis:', serverFilename);
+      } else if (currentAudio.serverFilename) {
+        serverFilename = currentAudio.serverFilename;
+      }
+      
+      const response = await ApiService.analyzeAudio(serverFilename);
       setAnalyzedAudio(response.data);
     } catch (error) {
       const errorInfo = ApiService.handleApiError(error);
@@ -138,7 +164,7 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
     } finally {
       setAnalyzing(false);
     }
-  }, [currentAudio?.filename]);
+  }, [currentAudio?.filename, currentAudio?.source, currentAudio?.serverFilename, currentAudio?.id]);
 
   useEffect(() => {
     if (currentAudio?.filename) {
@@ -159,11 +185,37 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
 
     setProcessing(true);
     try {
+      let serverFilename = currentAudio.filename;
+      
+      // Check if file exists on server, if not, upload it first
+      if (currentAudio.source === 'upload' && !currentAudio.serverFilename) {
+        console.log('File not on server, uploading for processing...');
+        
+        // Get the file from local storage
+        const audioFile = await localStorageService.getAudioFile(currentAudio.id);
+        if (!audioFile || !audioFile.blob) {
+          throw new Error('Audio file not found in local storage');
+        }
+        
+        // Create File object from blob
+        const file = new File([audioFile.blob], currentAudio.filename, {
+          type: audioFile.blob.type || 'audio/mpeg'
+        });
+        
+        // Upload to server for processing
+        const uploadResponse = await ApiService.uploadAudio(file);
+        serverFilename = uploadResponse.data.file.filename;
+        
+        console.log('File uploaded to server for processing:', serverFilename);
+      } else if (currentAudio.serverFilename) {
+        serverFilename = currentAudio.serverFilename;
+      }
+      
       const originalKey = analyzedAudio?.keyInfo?.key;
       const mode = analyzedAudio?.keyInfo?.mode;
 
       const response = await ApiService.transposeAudio(
-        currentAudio.filename,
+        serverFilename,
         semitones,
         originalKey,
         mode

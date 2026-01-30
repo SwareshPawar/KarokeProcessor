@@ -48,10 +48,12 @@ const Upload = ({ setCurrentAudio }) => {
       
       // Set current audio immediately for immediate use
       const immediateAudioData = {
+        id: storedFile.id,
         filename: file.name,
         originalName: file.name,
         title: file.name,
-        size: file.size
+        size: file.size,
+        source: 'upload'
       };
       
       setCurrentAudio(immediateAudioData);
@@ -79,6 +81,13 @@ const Upload = ({ setCurrentAudio }) => {
           
           // Update the existing stored file with server metadata
           await localStorageService.updateAudioFileMetadata(storedFile.id, updatedMetadata);
+          
+          // Update currentAudio with server filename
+          const updatedCurrentAudio = {
+            ...immediateAudioData,
+            serverFilename: response.data.file?.filename
+          };
+          setCurrentAudio(updatedCurrentAudio);
         }
         
         console.log('Background server upload completed for processing features');
