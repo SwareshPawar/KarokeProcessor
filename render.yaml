@@ -3,6 +3,7 @@ services:
     name: karaoke-processor
     env: node
     runtime: node
+    rootDir: .
     buildCommand: |
       # Install system dependencies
       sudo apt-get update

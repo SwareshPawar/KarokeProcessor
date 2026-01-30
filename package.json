@@ -1,0 +1,17 @@
+{
+  "name": "karaoke-processor",
+  "version": "1.0.0",
+  "description": "Karaoke Processor - Offline-First PWA for Audio Transposition",
+  "main": "backend/src/server.js",
+  "scripts": {
+    "build": "echo 'Using custom build command from render.yaml'",
+    "start": "cd backend && npm start",
+    "dev": "echo 'Run setup.bat for development setup'"
+  },
+  "keywords": ["karaoke", "audio", "transpose", "pwa", "offline"],
+  "author": "Your Name",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
