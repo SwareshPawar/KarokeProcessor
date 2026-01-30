@@ -197,7 +197,7 @@ class ApiService {
         message: error.message || 'An unexpected error occurred' 
       };
     }
-  }
 }
 
-export default new ApiService();
+const apiService = new ApiService();
+export default apiService;

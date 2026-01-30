@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaTrashAlt, FaHdd, FaCloud, FaDownload, FaUpload, FaSync, FaBroom } from 'react-icons/fa';
+import { FaTrashAlt, FaHdd, FaCloud, FaDownload, FaUpload, FaBroom } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import localStorageService from '../services/localStorageService';
 

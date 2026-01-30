@@ -1,8 +1,10 @@
 import React, { useState, useCallback } from 'react';
-import { FaYoutube, FaSpinner, FaDownload, FaPlay, FaInfoCircle, FaCheckCircle, FaExchangeAlt, FaMusic, FaVolumeUp } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
+import { FaYoutube, FaSpinner, FaDownload, FaPlay, FaInfoCircle, FaCheckCircle, FaExchangeAlt, FaMusic, FaVolumeUp, FaHdd } from 'react-icons/fa';
 import { Range } from 'react-range';
 import toast from 'react-hot-toast';
 import ApiService from '../services/api';
+import localStorageService from '../services/localStorageService';
 import { getStreamUrl } from '../utils/api';
 
 const YouTube = ({ setCurrentAudio }) => {
@@ -82,6 +84,7 @@ const YouTube = ({ setCurrentAudio }) => {
 
     setDownloading(true);
     try {
+      // Download audio from server
       const response = await ApiService.downloadYouTubeAudio(url);
       
       const audioData = {
@@ -96,9 +99,34 @@ const YouTube = ({ setCurrentAudio }) => {
         videoInfo: response.data.videoInfo
       };
 
-      setDownloadedAudio(audioData);
-      setCurrentAudio(audioData);
-      toast.success(`Successfully downloaded audio from "${response.data.videoInfo.title}"`);
+      // Store the downloaded file in local storage
+      const audioFileResponse = await fetch(getStreamUrl(audioData.filename));
+      const audioBlob = await audioFileResponse.blob();
+      
+      const storedFile = await localStorageService.storeAudioFile(
+        audioBlob,
+        {
+          title: audioData.originalName,
+          filename: audioData.filename,
+          size: audioBlob.size,
+          source: 'youtube',
+          metadata: {
+            ...audioData.metadata,
+            youtubeUrl: url,
+            videoId: videoInfo?.videoId
+          },
+          originalName: audioData.originalName,
+          videoInfo: audioData.videoInfo
+        }
+      );
+
+      setDownloadedAudio({ ...audioData, id: storedFile.id });
+      setCurrentAudio({ ...audioData, id: storedFile.id });
+      
+      // Dispatch storage update event
+      window.dispatchEvent(new Event('storageUpdated'));
+      
+      toast.success(`Successfully downloaded and stored "${response.data.videoInfo.title}" locally`);
       
       // Auto-analyze the downloaded audio
       analyzeAudio(audioData);
@@ -406,13 +434,16 @@ const YouTube = ({ setCurrentAudio }) => {
           <>
             <div className="card mt-6">
               <h2 className="text-xl font-semibold mb-4">
-                <FaMusic /> Downloaded Audio
+                <FaMusic /> Downloaded Audio - Stored Locally
               </h2>
               
               <div className="audio-info">
                 <h3 className="audio-title">
                   {downloadedAudio.originalName || downloadedAudio.videoInfo?.title}
                 </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  <FaHdd /> File stored safely on your device for offline access
+                </p>
                 
                 {analyzedAudio && (
                   <div className="audio-details">
@@ -433,6 +464,22 @@ const YouTube = ({ setCurrentAudio }) => {
                     </div>
                   </div>
                 )}
+                
+                {/* Action Buttons */}
+                <div className="flex gap-4 mt-4">
+                  <Link 
+                    to={downloadedAudio?.id ? `/transpose?file=${downloadedAudio.id}` : '/transpose'}
+                    className="btn btn-primary"
+                  >
+                    <FaExchangeAlt /> Transpose Audio
+                  </Link>
+                  <Link 
+                    to="/library"
+                    className="btn btn-secondary"
+                  >
+                    <FaHdd /> View Library
+                  </Link>
+                </div>
 
                 {analyzing && (
                   <div className="flex items-center gap-2 mt-4">
