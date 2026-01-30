@@ -2,7 +2,6 @@
   "name": "karaoke-processor",
   "version": "1.0.0",
   "description": "Karaoke Processor - Offline-First PWA for Audio Transposition",
-  "main": "backend/src/server.js",
   "scripts": {
     "build": "cd frontend && npm install && npm run build",
     "start": "cd frontend && npm run build",
