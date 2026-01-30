@@ -94,12 +94,12 @@ class AudioPlayerService {
       const { default: storageService } = await import('./localStorageService');
       await storageService.init();
       
-      // Get audio blob from IndexedDB
-      const audioBlob = await storageService.getAudioBlob(song.id);
+      // Get audio file from IndexedDB (this returns the full audio file object)
+      const audioFile = await storageService.getAudioFile(song.id);
       
-      if (audioBlob) {
+      if (audioFile && audioFile.blob) {
         // Create URL from blob for local files
-        const audioUrl = URL.createObjectURL(audioBlob);
+        const audioUrl = URL.createObjectURL(audioFile.blob);
         this.audio.src = audioUrl;
       } else {
         // Fallback to server stream if available
@@ -136,6 +136,11 @@ class AudioPlayerService {
     } else {
       await this.play();
     }
+  }
+
+  async playSong(song) {
+    await this.loadSong(song);
+    await this.play();
   }
 
   seek(time) {
