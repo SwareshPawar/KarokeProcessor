@@ -210,17 +210,22 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
       console.error('❌ Analysis error:', error);
       const errorInfo = ApiService.handleApiError(error);
       
-      // More specific error messages
-      if (error.message.includes('Audio file not found in local storage')) {
+      // More specific error messages - safely check error messages
+      const errorMessage = error.message || '';
+      const apiErrorMessage = errorInfo.message || '';
+      
+      if (errorMessage.includes('Audio file not found in local storage')) {
         toast.error('Audio file not found. Please re-upload the file.');
-      } else if (error.message.includes('corrupted') || error.message.includes('HTML')) {
+      } else if (errorMessage.includes('corrupted') || errorMessage.includes('HTML')) {
         toast.error('Audio file appears to be corrupted. Please re-upload.');
-      } else if (error.message.includes('missing ID')) {
+      } else if (errorMessage.includes('missing ID')) {
         toast.error('Audio file data is incomplete. Please re-upload the file.');
-      } else if (errorInfo.message.includes('Audio file not found')) {
+      } else if (apiErrorMessage.includes('Audio file not found')) {
         toast.error('Analysis failed: File needs to be re-uploaded to server');
+      } else if (errorInfo.type === 'filesize') {
+        toast.error('File too large. Please use a smaller audio file (max 4MB for Vercel deployment).');
       } else {
-        toast.error(`Analysis failed: ${errorInfo.message}`);
+        toast.error(`Analysis failed: ${apiErrorMessage || 'Unknown error occurred'}`);
       }
     } finally {
       setAnalyzing(false);
@@ -337,15 +342,20 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
       console.error('Transpose error:', error);
       const errorInfo = ApiService.handleApiError(error);
       
-      // More specific error messages
-      if (error.message.includes('Audio file not found in local storage')) {
+      // More specific error messages - safely check error messages
+      const errorMessage = error.message || '';
+      const apiErrorMessage = errorInfo.message || '';
+      
+      if (errorMessage.includes('Audio file not found in local storage')) {
         toast.error('Audio file not found. Please re-upload the file.');
-      } else if (error.message.includes('corrupted') || error.message.includes('HTML')) {
+      } else if (errorMessage.includes('corrupted') || errorMessage.includes('HTML')) {
         toast.error('Audio file appears to be corrupted. Please re-upload.');
-      } else if (errorInfo.message.includes('Audio file not found')) {
+      } else if (apiErrorMessage.includes('Audio file not found')) {
         toast.error('Transposition failed: File needs to be re-uploaded to server');
+      } else if (errorInfo.type === 'filesize') {
+        toast.error('File too large. Please use a smaller audio file (max 4MB for Vercel deployment).');
       } else {
-        toast.error(`Transposition failed: ${errorInfo.message}`);
+        toast.error(`Transposition failed: ${apiErrorMessage || 'Unknown error occurred'}`);
       }
     } finally {
       setProcessing(false);

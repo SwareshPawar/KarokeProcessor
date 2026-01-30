@@ -11,7 +11,7 @@ const app = express();
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB
+    fileSize: 4 * 1024 * 1024, // 4MB - Vercel serverless limit
   },
 });
 
@@ -28,8 +28,8 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json({ limit: '100mb' }));
-app.use(express.urlencoded({ extended: true, limit: '100mb' }));
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -48,27 +48,41 @@ app.get('/api/health', (req, res) => {
 });
 
 // Basic upload endpoint
-app.post('/api/audio/upload', upload.single('audio'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No audio file provided' });
+app.post('/api/audio/upload', (req, res) => {
+  upload.single('audio')(req, res, (err) => {
+    if (err) {
+      console.error('Upload error:', err);
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({ 
+          error: 'File too large', 
+          message: 'File size exceeds 4MB limit for Vercel deployment. Please use a smaller audio file.',
+          maxSize: '4MB'
+        });
+      }
+      return res.status(400).json({ error: 'Upload failed', message: err.message });
     }
 
-    // For now, just return success with file info
-    const response = {
-      message: 'File uploaded successfully',
-      filename: req.file.originalname,
-      size: req.file.size,
-      mimetype: req.file.mimetype,
-      serverFilename: `${Date.now()}_${req.file.originalname}`
-    };
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No audio file provided' });
+      }
 
-    console.log('Upload successful:', response);
-    res.json(response);
-  } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ error: 'Upload failed', message: error.message });
-  }
+      // For now, just return success with file info
+      const response = {
+        message: 'File uploaded successfully',
+        filename: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+        serverFilename: `${Date.now()}_${req.file.originalname}`
+      };
+
+      console.log('Upload successful:', response);
+      res.json(response);
+    } catch (error) {
+      console.error('Upload processing error:', error);
+      res.status(500).json({ error: 'Upload processing failed', message: error.message });
+    }
+  });
 });
 
 // Basic analysis endpoint  

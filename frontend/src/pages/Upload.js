@@ -19,10 +19,13 @@ const Upload = ({ setCurrentAudio }) => {
 
     const file = acceptedFiles[0];
     
-    // Validate file size (50MB limit)
-    const maxSize = 50 * 1024 * 1024;
+    // Validate file size - different limits for different platforms
+    const platform = process.env.REACT_APP_PLATFORM || 'local';
+    const maxSize = platform === 'vercel' ? 4 * 1024 * 1024 : 50 * 1024 * 1024; // 4MB for Vercel, 50MB for others
+    const sizeLimit = platform === 'vercel' ? '4MB' : '50MB';
+    
     if (file.size > maxSize) {
-      toast.error('File size must be less than 50MB');
+      toast.error(`File size must be less than ${sizeLimit} for ${platform} deployment`);
       return;
     }
 
@@ -114,7 +117,7 @@ const Upload = ({ setCurrentAudio }) => {
       'audio/*': ['.mp3', '.wav', '.aac', '.m4a', '.ogg', '.flac']
     },
     multiple: false,
-    maxSize: 50 * 1024 * 1024
+    maxSize: process.env.REACT_APP_PLATFORM === 'vercel' ? 4 * 1024 * 1024 : 50 * 1024 * 1024
   });
 
   const formatFileSize = (bytes) => {
@@ -175,7 +178,7 @@ const Upload = ({ setCurrentAudio }) => {
                   or click to browse files (MP3, WAV, AAC, M4A, OGG, FLAC)
                 </div>
                 <div className="dropzone-hint mt-4">
-                  Maximum file size: 50MB • Files stored locally on your device
+                  Maximum file size: {process.env.REACT_APP_PLATFORM === 'vercel' ? '4MB' : '50MB'} • Files stored locally on your device
                 </div>
               </>
             )}
@@ -289,7 +292,7 @@ const Upload = ({ setCurrentAudio }) => {
               <ul className="space-y-1 text-sm">
                 <li>• OGG - Open source compressed format</li>
                 <li>• FLAC - Lossless compression</li>
-                <li>• Maximum file size: 50MB</li>
+                <li>• Maximum file size: {process.env.REACT_APP_PLATFORM === 'vercel' ? '4MB' : '50MB'}</li>
                 <li>• All formats converted to MP3 output</li>
               </ul>
             </div>
