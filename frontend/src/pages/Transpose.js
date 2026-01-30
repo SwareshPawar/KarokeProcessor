@@ -142,9 +142,20 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
           throw new Error('Audio file not found in local storage');
         }
         
+        // Validate the blob is actual audio data
+        if (audioFile.blob.size < 1000 || audioFile.blob.type.includes('text/html')) {
+          throw new Error('Invalid audio file - corrupted or HTML content detected');
+        }
+        
         // Create File object from blob
         const file = new File([audioFile.blob], currentAudio.filename, {
           type: audioFile.blob.type || 'audio/mpeg'
+        });
+        
+        console.log('Uploading file for analysis:', {
+          name: file.name,
+          size: file.size,
+          type: file.type
         });
         
         // Upload to server for analysis
@@ -156,11 +167,24 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
         serverFilename = currentAudio.serverFilename;
       }
       
+      console.log('Analyzing audio with filename:', serverFilename);
       const response = await ApiService.analyzeAudio(serverFilename);
       setAnalyzedAudio(response.data);
+      console.log('Analysis completed successfully');
     } catch (error) {
+      console.error('Analysis error:', error);
       const errorInfo = ApiService.handleApiError(error);
-      toast.error(`Analysis failed: ${errorInfo.message}`);
+      
+      // More specific error messages
+      if (error.message.includes('Audio file not found in local storage')) {
+        toast.error('Audio file not found. Please re-upload the file.');
+      } else if (error.message.includes('corrupted') || error.message.includes('HTML')) {
+        toast.error('Audio file appears to be corrupted. Please re-upload.');
+      } else if (errorInfo.message.includes('Audio file not found')) {
+        toast.error('Analysis failed: File needs to be re-uploaded to server');
+      } else {
+        toast.error(`Analysis failed: ${errorInfo.message}`);
+      }
     } finally {
       setAnalyzing(false);
     }
@@ -197,9 +221,20 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
           throw new Error('Audio file not found in local storage');
         }
         
+        // Validate the blob is actual audio data
+        if (audioFile.blob.size < 1000 || audioFile.blob.type.includes('text/html')) {
+          throw new Error('Invalid audio file - corrupted or HTML content detected');
+        }
+        
         // Create File object from blob
         const file = new File([audioFile.blob], currentAudio.filename, {
           type: audioFile.blob.type || 'audio/mpeg'
+        });
+        
+        console.log('Uploading file for processing:', {
+          name: file.name,
+          size: file.size,
+          type: file.type
         });
         
         // Upload to server for processing
@@ -240,8 +275,19 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
         // Don't show error toast as main transposition succeeded
       }
     } catch (error) {
+      console.error('Transpose error:', error);
       const errorInfo = ApiService.handleApiError(error);
-      toast.error(`Transposition failed: ${errorInfo.message}`);
+      
+      // More specific error messages
+      if (error.message.includes('Audio file not found in local storage')) {
+        toast.error('Audio file not found. Please re-upload the file.');
+      } else if (error.message.includes('corrupted') || error.message.includes('HTML')) {
+        toast.error('Audio file appears to be corrupted. Please re-upload.');
+      } else if (errorInfo.message.includes('Audio file not found')) {
+        toast.error('Transposition failed: File needs to be re-uploaded to server');
+      } else {
+        toast.error(`Transposition failed: ${errorInfo.message}`);
+      }
     } finally {
       setProcessing(false);
     }

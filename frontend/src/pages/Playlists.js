@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FaMusic, FaPlus, FaPlay, FaPause, FaList, FaRandom, FaTrash, FaEdit, FaDownload } from 'react-icons/fa';
+import { FaMusic, FaPlus, FaPlay, FaPause, FaStop, FaList, FaRandom, FaTrash, FaEdit, FaDownload } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import playlistService from '../services/playlistService';
 import audioPlayerService from '../services/audioPlayerService';
@@ -98,8 +98,25 @@ const Playlists = () => {
 
   const playPlaylist = async (playlist) => {
     try {
-      await audioPlayerService.playPlaylist(playlist);
-      toast.success(`Playing "${playlist.name}"`);
+      // Check if this playlist is currently playing
+      const isCurrentPlaylist = playerState.playlist && playerState.playlist.length > 0 &&
+        playlist.songs && playlist.songs.some(song => 
+          playerState.playlist.some(pSong => pSong.id === song.id)
+        );
+      
+      if (isCurrentPlaylist && playerState.isPlaying) {
+        // Pause if currently playing this playlist
+        await audioPlayerService.pause();
+        toast.success(`Paused "${playlist.name}"`);
+      } else if (isCurrentPlaylist && !playerState.isPlaying) {
+        // Resume if this playlist is loaded but paused
+        await audioPlayerService.play();
+        toast.success(`Resumed "${playlist.name}"`);
+      } else {
+        // Load and play new playlist
+        await audioPlayerService.playPlaylist(playlist);
+        toast.success(`Playing "${playlist.name}"`);
+      }
     } catch (error) {
       console.error('Error playing playlist:', error);
       toast.error('Failed to play playlist');
@@ -108,11 +125,31 @@ const Playlists = () => {
 
   const playSong = async (song, songs, index) => {
     try {
-      await audioPlayerService.setPlaylist(songs, index);
-      await audioPlayerService.play();
+      // Check if this song is currently playing
+      if (playerState.currentSong?.id === song.id && playerState.isPlaying) {
+        // Pause if currently playing this song
+        await audioPlayerService.pause();
+      } else if (playerState.currentSong?.id === song.id && !playerState.isPlaying) {
+        // Resume if this song is loaded but paused
+        await audioPlayerService.play();
+      } else {
+        // Load and play new song
+        await audioPlayerService.setPlaylist(songs, index);
+        await audioPlayerService.play();
+      }
     } catch (error) {
       console.error('Error playing song:', error);
       toast.error('Failed to play song');
+    }
+  };
+
+  const stopPlayback = async () => {
+    try {
+      await audioPlayerService.stop();
+      toast.success('Playback stopped');
+    } catch (error) {
+      console.error('Error stopping playback:', error);
+      toast.error('Failed to stop playback');
     }
   };
 
@@ -214,9 +251,10 @@ const Playlists = () => {
                       className="play-button"
                       disabled={playlist.songCount === 0}
                     >
-                      {playerState.isPlaying && playerState.playlist.some(song => 
-                        playlistSongs.some(pSong => pSong.id === song.id)
-                      ) ? <FaPause /> : <FaPlay />}
+                      {playerState.isPlaying && playerState.playlist && playlist.songs &&
+                        playlist.songs.some(song => 
+                          playerState.playlist.some(pSong => pSong.id === song.id)
+                        ) ? <FaPause /> : <FaPlay />}
                     </button>
                   </div>
                 </div>
@@ -302,8 +340,14 @@ const Playlists = () => {
                       disabled={playlistSongs.length === 0}
                     >
                       <FaPlay /> Play All
-                    </button>
-                    <button 
+                    </button>                    {playerState.isPlaying && (
+                      <button 
+                        onClick={stopPlayback}
+                        className="btn btn-secondary me-2"
+                      >
+                        <FaStop /> Stop
+                      </button>
+                    )}                    <button 
                       onClick={() => {
                         audioPlayerService.setShuffle(!playerState.shuffle);
                         playPlaylist(selectedPlaylist);
@@ -350,12 +394,20 @@ const Playlists = () => {
                           <div className="song-actions">
                             <button 
                               onClick={() => playSong(song, playlistSongs, index)}
-                              className="btn btn-sm btn-primary"
+                              className="btn btn-sm btn-primary me-1"
                             >
                               {playerState.currentSong?.id === song.id && playerState.isPlaying ? 
                                 <FaPause /> : <FaPlay />
                               }
                             </button>
+                            {playerState.currentSong?.id === song.id && (
+                              <button 
+                                onClick={stopPlayback}
+                                className="btn btn-sm btn-secondary"
+                              >
+                                <FaStop />
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}
