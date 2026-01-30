@@ -1,7 +1,27 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 
-  (process.env.NODE_ENV === 'production' ? 'https://karokeprocessor.onrender.com/api' : 'http://localhost:3002/api');
+// Platform-specific API URL configuration
+const getApiBaseUrl = () => {
+  // If explicitly set, use that
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+
+  // Platform-specific URLs
+  const platform = process.env.REACT_APP_PLATFORM || 'local';
+  
+  switch (platform) {
+    case 'render':
+      return 'https://karokeprocessor.onrender.com/api';
+    case 'vercel':
+      return '/api'; // Vercel uses serverless functions at /api
+    case 'local':
+    default:
+      return 'http://localhost:3002/api';
+  }
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 class ApiService {
   constructor() {
