@@ -225,7 +225,7 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
     } finally {
       setAnalyzing(false);
     }
-  }, [setCurrentAudio]);
+  }, [currentAudio, setCurrentAudio]);
 
   useEffect(() => {
     if (currentAudio?.filename) {

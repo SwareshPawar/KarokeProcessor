@@ -1,0 +1,8 @@
+.\deploy-vercel.bat
+git add . && git commit -m "Deploy to Vercel" && git push origin main
+npx vercel --prod
+
+
+
+.\deploy-render.bat
+git add . && git commit -m "Deploy to Render" && git push origin main
