@@ -15,6 +15,26 @@ class AudioPlayerService {
     this.setupEventListeners();
   }
 
+  canPlayType(type) {
+    return this.audio.canPlayType(type);
+  }
+
+  testAudioSupport() {
+    const formats = [
+      'audio/mpeg',
+      'audio/mp3', 
+      'audio/wav',
+      'audio/ogg',
+      'audio/m4a',
+      'audio/aac'
+    ];
+    
+    console.log('Browser audio format support:');
+    formats.forEach(format => {
+      console.log(`${format}: ${this.canPlayType(format)}`);
+    });
+  }
+
   setupEventListeners() {
     this.audio.addEventListener('loadedmetadata', () => {
       this.duration = this.audio.duration;
@@ -41,7 +61,26 @@ class AudioPlayerService {
     });
 
     this.audio.addEventListener('error', (error) => {
-      console.error('Audio playback error:', error);
+      console.error('🚨 Audio playback error:', error);
+      console.error('Audio element error details:', {
+        src: this.audio.src,
+        error: this.audio.error,
+        networkState: this.audio.networkState,
+        readyState: this.audio.readyState,
+        currentTime: this.audio.currentTime
+      });
+      
+      // Check if it's a network or format error
+      if (this.audio.error) {
+        const errorMessages = {
+          1: 'MEDIA_ERR_ABORTED: The fetching process for the media resource was aborted',
+          2: 'MEDIA_ERR_NETWORK: A network error caused the media download to fail',
+          3: 'MEDIA_ERR_DECODE: An error occurred while decoding the media resource',
+          4: 'MEDIA_ERR_SRC_NOT_SUPPORTED: The media resource format is not supported'
+        };
+        console.error('Media error code:', this.audio.error.code, errorMessages[this.audio.error.code]);
+      }
+      
       this.notifyListeners('error', error);
     });
 
@@ -87,7 +126,10 @@ class AudioPlayerService {
     let audioFile; // Declare in function scope for error logging
     
     try {
-      // Stop current playbook
+      console.log('🎵 Loading song:', song);
+      console.log('🆔 Song ID:', song?.id);
+      
+      // Stop current playback
       this.pause();
       
       this.currentSong = song;
@@ -95,13 +137,42 @@ class AudioPlayerService {
       // Dynamically import and initialize localStorageService to avoid bundling issues
       const { default: storageService } = await import('./localStorageService');
       await storageService.init();
+      console.log('🗄️ LocalStorageService initialized');
       
       // Get audio file from IndexedDB (this returns the full audio file object)
       audioFile = await storageService.getAudioFile(song.id);
+      console.log('📁 Retrieved audioFile from IndexedDB:', audioFile);
       
-      if (audioFile && audioFile.blob) {
+      console.log('Retrieved audio file from storage:', {
+        hasAudioFile: !!audioFile,
+        hasBlob: !!(audioFile && audioFile.blob),
+        audioFileStructure: audioFile ? Object.keys(audioFile) : 'none',
+        blobSize: audioFile && audioFile.blob ? audioFile.blob.size : 'none',
+        blobType: audioFile && audioFile.blob ? audioFile.blob.type : 'none'
+      });
+      
+      if (audioFile && audioFile.blob && audioFile.blob.size > 0) {
+        // Validate blob type
+        const supportedTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/m4a', 'audio/aac'];
+        const blobType = audioFile.blob.type || 'audio/mpeg';
+        
+        console.log('Audio format validation:', {
+          originalType: audioFile.blob.type,
+          effectiveType: blobType,
+          isSupported: supportedTypes.includes(blobType) || supportedTypes.some(type => blobType.startsWith(type.split('/')[0]))
+        });
+        
         // Create URL from blob for local files
         const audioUrl = URL.createObjectURL(audioFile.blob);
+        
+        console.log('Loading audio from blob:', {
+          songId: song.id,
+          songTitle: song.title,
+          blobSize: audioFile.blob.size,
+          blobType: blobType,
+          audioUrl: audioUrl
+        });
+        
         this.audio.src = audioUrl;
         
         // Clean up previous blob URL to prevent memory leaks
@@ -110,11 +181,24 @@ class AudioPlayerService {
         });
         
       } else {
+        console.log('Invalid or empty blob, using server stream fallback:', {
+          songId: song.id,
+          filename: song.filename,
+          hasAudioFile: !!audioFile,
+          hasBlob: !!(audioFile && audioFile.blob),
+          blobSize: audioFile && audioFile.blob ? audioFile.blob.size : 0
+        });
+        
         // Fallback to server stream if available
         this.audio.src = `/api/stream/${song.filename}`;
       }
 
+      console.log('🔄 Current audio src before load:', this.audio.src);
+      console.log('📊 Audio readyState:', this.audio.readyState);
+      
       this.audio.load();
+      console.log('✅ Audio.load() called');
+      
       this.notifyListeners('songLoaded', song);
       
       return true;
