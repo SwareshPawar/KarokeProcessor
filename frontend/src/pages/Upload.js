@@ -30,68 +30,64 @@ const Upload = ({ setCurrentAudio }) => {
     setUploadProgress(0);
 
     try {
-      // Upload to server for processing
-      const response = await ApiService.uploadAudio(file, (progress) => {
-        setUploadProgress(progress * 0.7); // Reserve 30% for local storage
-      });
-
-      const audioData = {
-        ...response.data.file,
+      // Store original file locally first (fast)
+      setUploadProgress(20);
+      
+      // Store the original file directly in local storage for immediate use
+      const originalBlob = new Blob([file], { type: file.type || 'audio/mpeg' });
+      const originalMetadata = {
+        title: file.name,
+        filename: file.name,
         originalName: file.name,
-        metadata: response.data.metadata,
-        filename: response.data.file.filename
+        size: file.size,
+        source: 'upload'
       };
-
-      // Store the processed file in local storage
-      setUploadProgress(70);
       
-      // Download the audio file using the API service
-      let audioBlob;
+      const storedFile = await localStorageService.storeAudioFile(originalBlob, originalMetadata);
+      setUploadProgress(50);
       
-      try {
-        console.log('Downloading audio for local storage:', audioData.filename);
-        const audioResponse = await ApiService.downloadAudio(audioData.filename);
-        audioBlob = new Blob([audioResponse.data], { type: 'audio/mpeg' });
-        
-        console.log('Successfully downloaded audio via API:', {
-          size: audioBlob.size,
-          type: audioBlob.type,
-          filename: audioData.filename
-        });
-        
-        // Validate that we got actual audio data
-        if (audioBlob.size < 1000) {
-          throw new Error('Downloaded file is too small to be valid audio');
-        }
-        
-      } catch (fetchError) {
-        console.error('Failed to download audio from server via API:', fetchError);
-        // If API download fails, use the original file blob
-        audioBlob = new Blob([file], { type: file.type || 'audio/mpeg' });
-        console.log('Using original file as fallback blob:', {
-          size: audioBlob.size,
-          type: audioBlob.type
-        });
-      }
+      // Set current audio immediately for immediate use
+      const immediateAudioData = {
+        filename: file.name,
+        originalName: file.name,
+        title: file.name,
+        size: file.size
+      };
       
-      const storedFile = await localStorageService.storeAudioFile(
-        audioBlob,
-        {
-          title: audioData.originalName,
-          filename: audioData.filename,
-          size: audioBlob.size,
-          source: 'upload',
-          metadata: audioData.metadata,
-          originalName: audioData.originalName
-        }
-      );
-
-      setUploadProgress(100);
+      setCurrentAudio(immediateAudioData);
       setUploadedFile(storedFile);
-      setCurrentAudio(audioData);
       
       // Dispatch storage update event
       window.dispatchEvent(new Event('storageUpdated'));
+      
+      setUploadProgress(70);
+      
+      // Upload to server in background for processing features (optional)
+      try {
+        const response = await ApiService.uploadAudio(file, (progress) => {
+          // Map server upload progress to remaining 30%
+          setUploadProgress(70 + (progress * 0.3));
+        });
+
+        // Update the stored file with server metadata if available
+        if (response.data?.metadata) {
+          const updatedMetadata = {
+            ...originalMetadata,
+            metadata: response.data.metadata,
+            serverFilename: response.data.file?.filename // Keep server filename for processing
+          };
+          
+          // Update the existing stored file with server metadata
+          await localStorageService.updateAudioFileMetadata(storedFile.id, updatedMetadata);
+        }
+        
+        console.log('Background server upload completed for processing features');
+      } catch (serverError) {
+        console.warn('Server upload failed, but local storage successful:', serverError);
+        // Don't fail the whole upload if server upload fails
+      }
+
+      setUploadProgress(100);
       
       toast.success(`Successfully uploaded and stored ${file.name} locally`);
     } catch (error) {

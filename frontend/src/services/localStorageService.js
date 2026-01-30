@@ -142,6 +142,35 @@ class LocalStorageService {
     return this.promisifyRequest(store.get(id));
   }
 
+  // Update audio file metadata
+  async updateAudioFileMetadata(id, updatedMetadata) {
+    if (!this.db) await this.init();
+    
+    const transaction = this.db.transaction(['audioFiles'], 'readwrite');
+    const store = transaction.objectStore('audioFiles');
+    
+    // Get the existing file
+    const existingFile = await this.promisifyRequest(store.get(id));
+    if (!existingFile) {
+      throw new Error('Audio file not found');
+    }
+    
+    // Update the metadata while preserving the blob and other essential data
+    const updatedFile = {
+      ...existingFile,
+      ...updatedMetadata,
+      id: existingFile.id, // Preserve original ID
+      blob: existingFile.blob, // Preserve original blob
+      dateCreated: existingFile.dateCreated, // Preserve creation date
+      dateUpdated: new Date()
+    };
+    
+    await this.promisifyRequest(store.put(updatedFile));
+    this.updateStorageStats();
+    
+    return updatedFile;
+  }
+
   // Get all audio files
   async getAllAudioFiles() {
     if (!this.db) await this.init();
