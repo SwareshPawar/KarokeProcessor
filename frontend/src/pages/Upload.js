@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
-import { FaUpload, FaMusic, FaCheckCircle, FaSpinner, FaDownload } from 'react-icons/fa';
+import { FaUpload, FaMusic, FaCheckCircle, FaSpinner, FaDownload, FaGoogleDrive, FaCloud } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import ApiService from '../services/api';
 import localStorageService from '../services/localStorageService';
@@ -10,6 +10,9 @@ const Upload = ({ setCurrentAudio }) => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [showDriveSync, setShowDriveSync] = useState(false);
+  const [driveSyncing, setDriveSyncing] = useState(false);
+  const [googleAuth, setGoogleAuth] = useState(null);
 
   const onDrop = async (acceptedFiles) => {
     if (acceptedFiles.length === 0) {
@@ -101,6 +104,8 @@ const Upload = ({ setCurrentAudio }) => {
       }
 
       setUploadProgress(100);
+      setUploadedFile({ file, storedFile });
+      setShowDriveSync(true); // Show Google Drive sync option
       
       toast.success(`Successfully uploaded and stored ${file.name} locally`);
     } catch (error) {
@@ -133,6 +138,48 @@ const Upload = ({ setCurrentAudio }) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.floor(seconds % 60);
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  // Simple backup options without OAuth
+  const showBackupOptions = () => {
+    setShowDriveSync(true);
+  };
+
+  const downloadFileForBackup = () => {
+    if (!uploadedFile) return;
+    
+    // Create download link for the uploaded file
+    const url = URL.createObjectURL(uploadedFile.file);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = uploadedFile.file.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast.success('File downloaded! You can now manually upload it to Google Drive.');
+  };
+
+  const copyBackupInstructions = () => {
+    const instructions = `
+Backup Instructions for ${uploadedFile?.file.name}:
+1. Go to drive.google.com
+2. Click "New" → "File upload"
+3. Select the downloaded file
+4. Create a "Karaoke Files" folder for organization
+5. Your file is now safely backed up!`;
+    
+    navigator.clipboard.writeText(instructions).then(() => {
+      toast.success('Backup instructions copied to clipboard!');
+    }).catch(() => {
+      toast.info('Backup instructions ready - check the modal below');
+    });
+  };
+
+  const skipDriveSync = () => {
+    setShowDriveSync(false);
+    setUploadedFile(null);
   };
 
   return (
@@ -262,6 +309,13 @@ const Upload = ({ setCurrentAudio }) => {
                   View Library
                 </Link>
                 <button 
+                  onClick={showBackupOptions}
+                  className="btn btn-secondary"
+                >
+                  <FaCloud />
+                  Backup Options
+                </button>
+                <button 
                   onClick={() => {
                     setUploadedFile(null);
                     setCurrentAudio(null);
@@ -299,6 +353,85 @@ const Upload = ({ setCurrentAudio }) => {
             </div>
           </div>
         </div>
+
+        {/* Backup Options Modal */}
+        {showDriveSync && uploadedFile && (
+          <div className="modal-overlay" onClick={skipDriveSync}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2><FaGoogleDrive /> Backup Your File</h2>
+                <button onClick={skipDriveSync} className="modal-close">×</button>
+              </div>
+              
+              <div className="modal-body">
+                <div className="text-center mb-6">
+                  <FaCloud className="text-6xl text-blue-500 opacity-75 mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Keep Your Music Safe!</h3>
+                  <p className="text-gray-600 mb-4">
+                    Your file <strong>{uploadedFile.file.name}</strong> is stored locally. 
+                    Consider backing it up to Google Drive for safe keeping.
+                  </p>
+                </div>
+
+                <div className="backup-options space-y-4">
+                  <div className="backup-option">
+                    <h4 className="font-semibold text-green-600 mb-2">
+                      <FaDownload className="inline mr-2" />
+                      Option 1: Download & Upload Manually
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">
+                      Download the file and manually upload it to your Google Drive.
+                    </p>
+                    <button 
+                      onClick={downloadFileForBackup}
+                      className="btn btn-success btn-sm"
+                    >
+                      <FaDownload /> Download File
+                    </button>
+                  </div>
+
+                  <div className="backup-option">
+                    <h4 className="font-semibold text-blue-600 mb-2">
+                      <FaGoogleDrive className="inline mr-2" />
+                      Option 2: Copy Instructions
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">
+                      Get step-by-step instructions for backing up to Google Drive.
+                    </p>
+                    <button 
+                      onClick={copyBackupInstructions}
+                      className="btn btn-info btn-sm"
+                    >
+                      <FaCloud /> Copy Instructions
+                    </button>
+                  </div>
+
+                  <div className="backup-info bg-blue-50 p-3 rounded-md mt-4">
+                    <p className="text-sm text-blue-700">
+                      <strong>Tip:</strong> Create a "Karaoke Files" folder in your Google Drive 
+                      to keep all your music organized in one place.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="modal-actions mt-6 flex justify-between">
+                  <button 
+                    onClick={skipDriveSync}
+                    className="btn btn-secondary"
+                  >
+                    Skip Backup
+                  </button>
+                  <button 
+                    onClick={skipDriveSync}
+                    className="btn btn-primary"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

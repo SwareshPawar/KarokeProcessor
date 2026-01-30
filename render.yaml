@@ -30,6 +30,8 @@ services:
       - key: FRONTEND_URL
         from: service
         property: url
+      - key: REACT_APP_GOOGLE_API_KEY
+        value: AIzaSyBXXfXYGOpQMqr1pqJVx64FeDaci-w-M8w
     # Add your environment variables here:
     # - key: GOOGLE_CLIENT_ID
     #   value: your-google-client-id

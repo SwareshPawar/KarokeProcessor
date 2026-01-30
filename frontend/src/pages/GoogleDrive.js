@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaGoogleDrive, FaSpinner, FaDownload, FaSearch, FaExternalLinkAlt, FaKey } from 'react-icons/fa';
 import toast from 'react-hot-toast';
-import ApiService from '../services/api';
+import localStorageService from '../services/localStorageService';
 
 const GoogleDrive = ({ setCurrentAudio }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -9,44 +9,148 @@ const GoogleDrive = ({ setCurrentAudio }) => {
   const [files, setFiles] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [downloading, setDownloading] = useState({});
+  const [accessToken, setAccessToken] = useState(null);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    checkAuthStatus();
+    loadGoogleIdentityServices();
   }, []);
 
-  const checkAuthStatus = async () => {
-    try {
-      const response = await ApiService.getGoogleDriveStatus();
-      setIsAuthenticated(response.data.authenticated);
-    } catch (error) {
-      setIsAuthenticated(false);
+  const loadGoogleIdentityServices = () => {
+    // Load Google Identity Services script
+    if (!window.google) {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = initializeGoogleAuth;
+      document.head.appendChild(script);
+    } else {
+      initializeGoogleAuth();
     }
+  };
+
+  const initializeGoogleAuth = () => {
+    const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      toast.error('Google Client ID not configured');
+      return;
+    }
+
+    // Initialize Google Identity Services
+    window.google.accounts.id.initialize({
+      client_id: clientId,
+      callback: handleCredentialResponse
+    });
+
+    // Initialize Google API
+    window.gapi?.load('client', () => {
+      window.gapi.client.init({
+        apiKey: process.env.REACT_APP_GOOGLE_API_KEY,
+        clientId: clientId,
+        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+        scope: 'https://www.googleapis.com/auth/drive.readonly'
+      });
+    });
+  };
+
+  const handleCredentialResponse = async (response) => {
+    try {
+      // Decode JWT token
+      const credential = parseJwt(response.credential);
+      setUser({
+        name: credential.name,
+        email: credential.email,
+        picture: credential.picture
+      });
+      
+      // Get access token for Drive API
+      await getAccessToken();
+      
+      toast.success(`Welcome, ${credential.name}!`);
+    } catch (error) {
+      console.error('Authentication error:', error);
+      toast.error('Authentication failed');
+    }
+  };
+
+  const parseJwt = (token) => {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  };
+
+  const getAccessToken = () => {
+    return new Promise((resolve, reject) => {
+      window.google.accounts.oauth2.initTokenClient({
+        client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID,
+        scope: 'https://www.googleapis.com/auth/drive.readonly',
+        callback: (tokenResponse) => {
+          setAccessToken(tokenResponse.access_token);
+          setIsAuthenticated(true);
+          resolve(tokenResponse.access_token);
+        },
+        error_callback: (error) => {
+          console.error('Token error:', error);
+          reject(error);
+        }
+      }).requestAccessToken();
+    });
   };
 
   const handleAuthenticate = async () => {
     try {
       setLoading(true);
-      const response = await ApiService.getGoogleDriveAuthUrl();
       
-      // Open Google OAuth in new window
-      window.open(response.data.authUrl, '_blank', 'width=500,height=600');
-      
-      // Note: In a real implementation, you'd handle the OAuth callback
-      // For now, show instructions to user
-      toast.success('Please complete the authentication in the new window');
+      if (window.google && window.google.accounts) {
+        // Try to get access token directly
+        await getAccessToken();
+      } else {
+        // Show sign-in prompt
+        window.google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            // Fallback: show One Tap dialog
+            window.google.accounts.id.renderButton(
+              document.getElementById("google-signin-button"),
+              { theme: "outline", size: "large" }
+            );
+          }
+        });
+      }
     } catch (error) {
-      const errorInfo = ApiService.handleApiError(error);
-      toast.error(errorInfo.message);
+      console.error('Authentication error:', error);
+      toast.error('Authentication failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   const loadFiles = async () => {
+    if (!accessToken) {
+      toast.error('Please authenticate first');
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await ApiService.listGoogleDriveFiles();
-      setFiles(response.data.files);
+      
+      // Query for audio files in Google Drive
+      const response = await window.gapi.client.drive.files.list({
+        q: "mimeType contains 'audio/' and trashed=false",
+        fields: 'files(id,name,mimeType,size,modifiedTime,webContentLink)',
+        pageSize: 50
+      });
+
+      setFiles(response.result.files || []);
+      
+      if (response.result.files?.length === 0) {
+        toast.info('No audio files found in your Google Drive');
+      } else {
+        toast.success(`Found ${response.result.files.length} audio files`);
+      }
     } catch (error) {
       const errorInfo = ApiService.handleApiError(error);
       if (errorInfo.requiresAuth) {
