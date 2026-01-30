@@ -1,5 +1,3 @@
-import localStorageService from './localStorageService';
-
 class AudioPlayerService {
   constructor() {
     this.audio = new Audio();
@@ -92,11 +90,12 @@ class AudioPlayerService {
       
       this.currentSong = song;
       
-      // Ensure localStorageService is initialized
-      await localStorageService.init();
+      // Dynamically import and initialize localStorageService to avoid bundling issues
+      const { default: storageService } = await import('./localStorageService');
+      await storageService.init();
       
       // Get audio blob from IndexedDB
-      const audioBlob = await localStorageService.getAudioBlob(song.id);
+      const audioBlob = await storageService.getAudioBlob(song.id);
       
       if (audioBlob) {
         // Create URL from blob for local files
@@ -230,8 +229,8 @@ class AudioPlayerService {
   }
 
   async playPlaylist(playlist) {
-    const playlistService = await import('./playlistService');
-    const songs = await playlistService.default.getPlaylistSongs(playlist.id);
+    const { default: playlistService } = await import('./playlistService');
+    const songs = await playlistService.getPlaylistSongs(playlist.id);
     
     if (songs.length > 0) {
       await this.setPlaylist(songs);
