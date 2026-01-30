@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FaMusic, FaHome, FaUpload, FaGoogleDrive, FaYoutube, FaExchangeAlt } from 'react-icons/fa';
+import { FaMusic, FaHome, FaUpload, FaGoogleDrive, FaYoutube, FaExchangeAlt, FaHdd, FaBoxes } from 'react-icons/fa';
 import './Header.css';
 
 const Header = () => {
@@ -56,6 +56,22 @@ const Header = () => {
             >
               <FaExchangeAlt />
               <span>Transpose</span>
+            </Link>
+            
+            <Link 
+              to="/library" 
+              className={`nav-link ${isActive('/library') ? 'active' : ''}`}
+            >
+              <FaBoxes />
+              <span>Library</span>
+            </Link>
+            
+            <Link 
+              to="/storage" 
+              className={`nav-link ${isActive('/storage') ? 'active' : ''}`}
+            >
+              <FaHdd />
+              <span>Storage</span>
             </Link>
           </nav>
         </div>

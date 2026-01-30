@@ -6,6 +6,8 @@ import Upload from './pages/Upload';
 import GoogleDrive from './pages/GoogleDrive';
 import YouTube from './pages/YouTube';
 import Transpose from './pages/Transpose';
+import Library from './pages/Library';
+import StorageManager from './pages/StorageManager';
 import './App.css';
 
 function App() {
@@ -59,6 +61,14 @@ function App() {
             <Route 
               path="/transpose" 
               element={<Transpose currentAudio={currentAudio} setCurrentAudio={setCurrentAudio} />} 
+            />
+            <Route 
+              path="/library" 
+              element={<Library />} 
+            />
+            <Route 
+              path="/storage" 
+              element={<StorageManager />} 
             />
           </Routes>
         </div>

@@ -1,15 +1,40 @@
 {
-  "short_name": "Karaoke Processor",
-  "name": "Karaoke Processor - Audio Transposition Tool",
+  "name": "Karaoke Processor",
+  "short_name": "KaraokeProcessor",
+  "description": "Professional audio transposition and karaoke processing app that works offline",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["music", "entertainment", "productivity"],
   "icons": [
     {
       "src": "favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
       "type": "image/x-icon"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ],
-  "start_url": ".",
-  "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "features": [
+    "Cross-platform compatibility",
+    "Offline audio processing",
+    "YouTube audio extraction",
+    "Professional pitch transposition",
+    "Local storage with cloud sync",
+    "Audio key detection"
+  ]
 }

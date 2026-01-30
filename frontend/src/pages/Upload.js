@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
-import { FaUpload, FaMusic, FaCheckCircle, FaSpinner } from 'react-icons/fa';
+import { FaUpload, FaMusic, FaCheckCircle, FaSpinner, FaDownload } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import ApiService from '../services/api';
+import localStorageService from '../services/localStorageService';
 
 const Upload = ({ setCurrentAudio }) => {
   const [uploading, setUploading] = useState(false);
@@ -29,21 +30,43 @@ const Upload = ({ setCurrentAudio }) => {
     setUploadProgress(0);
 
     try {
+      // Upload to server for processing
       const response = await ApiService.uploadAudio(file, (progress) => {
-        setUploadProgress(progress);
+        setUploadProgress(progress * 0.7); // Reserve 30% for local storage
       });
 
       const audioData = {
         ...response.data.file,
         originalName: file.name,
         metadata: response.data.metadata,
-        filename: response.data.file.filename  // Make sure filename is available
+        filename: response.data.file.filename
       };
 
-      setUploadedFile(audioData);
+      // Store the processed file in local storage
+      setUploadProgress(70);
+      const audioFileResponse = await fetch(`${ApiService.baseURL}/stream/${audioData.filename}`);
+      const audioBlob = await audioFileResponse.blob();
+      
+      const storedFile = await localStorageService.storeAudioFile(
+        audioBlob,
+        {
+          title: audioData.originalName,
+          filename: audioData.filename,
+          size: audioBlob.size,
+          source: 'upload',
+          metadata: audioData.metadata,
+          originalName: audioData.originalName
+        }
+      );
+
+      setUploadProgress(100);
+      setUploadedFile(storedFile);
       setCurrentAudio(audioData);
       
-      toast.success(`Successfully uploaded ${file.name}`);
+      // Dispatch storage update event
+      window.dispatchEvent(new Event('storageUpdated'));
+      
+      toast.success(`Successfully uploaded and stored ${file.name} locally`);
     } catch (error) {
       const errorInfo = ApiService.handleApiError(error);
       toast.error(errorInfo.message);
@@ -98,7 +121,7 @@ const Upload = ({ setCurrentAudio }) => {
             {uploading ? (
               <div className="loading">
                 <FaSpinner className="spinner" />
-                <div className="dropzone-text">Uploading...</div>
+                <div className="dropzone-text">Processing & Storing Locally...</div>
                 <div className="progress-bar">
                   <div 
                     className="progress-fill" 
@@ -106,6 +129,9 @@ const Upload = ({ setCurrentAudio }) => {
                   ></div>
                 </div>
                 <div className="dropzone-hint">{uploadProgress}% complete</div>
+                <div className="text-sm mt-2 opacity-75">
+                  {uploadProgress < 70 ? 'Uploading to server...' : 'Storing in local device...'}
+                </div>
               </div>
             ) : (
               <>
@@ -117,7 +143,7 @@ const Upload = ({ setCurrentAudio }) => {
                   or click to browse files (MP3, WAV, AAC, M4A, OGG, FLAC)
                 </div>
                 <div className="dropzone-hint mt-4">
-                  Maximum file size: 50MB
+                  Maximum file size: 50MB • Files stored locally on your device
                 </div>
               </>
             )}
@@ -129,18 +155,21 @@ const Upload = ({ setCurrentAudio }) => {
           <div className="card mt-6">
             <div className="flex items-center gap-4 mb-4">
               <FaCheckCircle className="text-2xl" style={{ color: '#10b981' }} />
-              <h2 className="text-xl font-semibold">Upload Successful!</h2>
+              <h2 className="text-xl font-semibold">Upload Successful - Stored Locally!</h2>
             </div>
             
             <div className="audio-info">
-              <h3 className="audio-title">{uploadedFile.originalName}</h3>
+              <h3 className="audio-title">{uploadedFile.originalName || uploadedFile.title}</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                <FaDownload /> File stored safely on your device for offline access
+              </p>
               
-              {uploadedFile.metadata && (
+              {(uploadedFile.metadata || uploadedFile) && (
                 <div className="audio-details">
                   <div className="audio-detail">
                     <span className="detail-label">Duration:</span>
                     <span className="detail-value">
-                      {formatDuration(uploadedFile.metadata.duration)}
+                      {formatDuration(uploadedFile.metadata?.duration || uploadedFile.duration)}
                     </span>
                   </div>
                   <div className="audio-detail">
@@ -149,37 +178,52 @@ const Upload = ({ setCurrentAudio }) => {
                       {formatFileSize(uploadedFile.size)}
                     </span>
                   </div>
-                  <div className="audio-detail">
-                    <span className="detail-label">Sample Rate:</span>
-                    <span className="detail-value">{uploadedFile.metadata.sampleRate} Hz</span>
-                  </div>
-                  <div className="audio-detail">
-                    <span className="detail-label">Channels:</span>
-                    <span className="detail-value">
-                      {uploadedFile.metadata.channels} 
-                      {uploadedFile.metadata.channels === 1 ? ' (Mono)' : ' (Stereo)'}
-                    </span>
-                  </div>
-                  <div className="audio-detail">
-                    <span className="detail-label">Bitrate:</span>
-                    <span className="detail-value">
-                      {Math.round(uploadedFile.metadata.bitrate / 1000)} kbps
-                    </span>
-                  </div>
-                  <div className="audio-detail">
-                    <span className="detail-label">Format:</span>
-                    <span className="detail-value">{uploadedFile.metadata.codec}</span>
-                  </div>
+                  {uploadedFile.metadata?.sampleRate && (
+                    <div className="audio-detail">
+                      <span className="detail-label">Sample Rate:</span>
+                      <span className="detail-value">{uploadedFile.metadata.sampleRate} Hz</span>
+                    </div>
+                  )}
+                  {uploadedFile.metadata?.channels && (
+                    <div className="audio-detail">
+                      <span className="detail-label">Channels:</span>
+                      <span className="detail-value">
+                        {uploadedFile.metadata.channels} 
+                        {uploadedFile.metadata.channels === 1 ? ' (Mono)' : ' (Stereo)'}
+                      </span>
+                    </div>
+                  )}
+                  {uploadedFile.metadata?.bitrate && (
+                    <div className="audio-detail">
+                      <span className="detail-label">Bitrate:</span>
+                      <span className="detail-value">
+                        {Math.round(uploadedFile.metadata.bitrate / 1000)} kbps
+                      </span>
+                    </div>
+                  )}
+                  {uploadedFile.metadata?.codec && (
+                    <div className="audio-detail">
+                      <span className="detail-label">Format:</span>
+                      <span className="detail-value">{uploadedFile.metadata.codec}</span>
+                    </div>
+                  )}
                 </div>
               )}
 
               <div className="flex gap-4 mt-6">
                 <Link 
-                  to="/transpose" 
+                  to={`/transpose?file=${uploadedFile.id}`}
                   className="btn btn-primary"
                 >
                   <FaMusic />
                   Start Transposing
+                </Link>
+                <Link 
+                  to="/library"
+                  className="btn btn-secondary"
+                >
+                  <FaDownload />
+                  View Library
                 </Link>
                 <button 
                   onClick={() => {
