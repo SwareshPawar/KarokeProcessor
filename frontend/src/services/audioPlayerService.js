@@ -1,3 +1,5 @@
+import localStorageService from './localStorageService';
+
 class AudioPlayerService {
   constructor() {
     this.audio = new Audio();
@@ -91,8 +93,7 @@ class AudioPlayerService {
       this.currentSong = song;
       
       // Get audio blob from IndexedDB
-      const localStorageService = await import('./localStorageService');
-      const audioBlob = await localStorageService.default.getAudioBlob(song.id);
+      const audioBlob = await localStorageService.getAudioBlob(song.id);
       
       if (audioBlob) {
         // Create URL from blob for local files

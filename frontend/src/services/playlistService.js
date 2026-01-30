@@ -1,3 +1,5 @@
+import localStorageService from './localStorageService';
+
 class PlaylistService {
   constructor() {
     this.dbName = 'KaraokeProcessor';
@@ -147,8 +149,7 @@ class PlaylistService {
     }
 
     // Get song details to update playlist metadata
-    const localStorageService = await import('./localStorageService');
-    const song = await localStorageService.default.getAudioFile(songId);
+    const song = await localStorageService.getAudioFile(songId);
     
     const updatedSongs = [...playlist.songs, songId];
     const updatedDuration = playlist.totalDuration + (song?.metadata?.duration || 0);
@@ -166,8 +167,7 @@ class PlaylistService {
       throw new Error('Playlist not found');
     }
 
-    const localStorageService = await import('./localStorageService');
-    const song = await localStorageService.default.getAudioFile(songId);
+    const song = await localStorageService.getAudioFile(songId);
     
     const updatedSongs = playlist.songs.filter(id => id !== songId);
     const updatedDuration = playlist.totalDuration - (song?.metadata?.duration || 0);
@@ -185,12 +185,11 @@ class PlaylistService {
       throw new Error('Playlist not found');
     }
 
-    const localStorageService = await import('./localStorageService');
     const songs = [];
     
     for (const songId of playlist.songs) {
       try {
-        const song = await localStorageService.default.getAudioFile(songId);
+        const song = await localStorageService.getAudioFile(songId);
         if (song) {
           songs.push(song);
         }
@@ -245,7 +244,6 @@ class PlaylistService {
     }
 
     const { playlist } = importData;
-    const localStorageService = await import('./localStorageService');
     
     // Create new playlist
     const newPlaylist = await this.createPlaylist({
@@ -258,7 +256,7 @@ class PlaylistService {
     // Add songs that exist in local storage
     for (const song of playlist.songs) {
       try {
-        const existingSong = await localStorageService.default.getAudioFile(song.id);
+        const existingSong = await localStorageService.getAudioFile(song.id);
         if (existingSong) {
           await this.addSongToPlaylist(newPlaylist.id, song.id);
         }
