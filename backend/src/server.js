@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const audioRoutes = require('./routes/audio');
@@ -11,6 +12,15 @@ const youtubeRoutes = require('./routes/youtube');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log('📁 Created uploads directory:', uploadsDir);
+} else {
+  console.log('📁 Uploads directory exists:', uploadsDir);
+}
 
 // Security middleware
 app.use(helmet());

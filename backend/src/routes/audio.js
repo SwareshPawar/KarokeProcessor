@@ -8,9 +8,20 @@ const router = express.Router();
 const audioProcessor = new AudioProcessor();
 
 // Configure multer for file uploads
+const uploadsDir = path.join(__dirname, '../../uploads');
+
+// Ensure uploads directory exists
+const ensureUploadsDir = () => {
+  const fs = require('fs');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+};
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../../uploads'));
+    ensureUploadsDir(); // Ensure directory exists before each upload
+    cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
