@@ -123,17 +123,28 @@ const Playlists = () => {
     }
   };
 
-  const playSong = async (song, songs, index) => {
+  // Shared audio control functions
+  const handlePlayPause = async (song, songs, index) => {
+    console.log('🎵 Playlist playSong called with:', {
+      songId: song.id,
+      songTitle: song.title,
+      currentSongId: playerState.currentSong?.id,
+      isPlaying: playerState.isPlaying
+    });
+    
     try {
       // Check if this song is currently playing
       if (playerState.currentSong?.id === song.id && playerState.isPlaying) {
         // Pause if currently playing this song
+        console.log('🔄 Pausing current song');
         await audioPlayerService.pause();
       } else if (playerState.currentSong?.id === song.id && !playerState.isPlaying) {
         // Resume if this song is loaded but paused
+        console.log('▶️ Resuming current song');
         await audioPlayerService.play();
       } else {
         // Load and play new song
+        console.log('🆕 Loading new song');
         await audioPlayerService.setPlaylist(songs, index);
         await audioPlayerService.play();
       }
@@ -143,7 +154,7 @@ const Playlists = () => {
     }
   };
 
-  const stopPlayback = async () => {
+  const handleStop = async () => {
     try {
       await audioPlayerService.stop();
       toast.success('Playback stopped');
@@ -342,7 +353,7 @@ const Playlists = () => {
                       <FaPlay /> Play All
                     </button>                    {playerState.isPlaying && (
                       <button 
-                        onClick={stopPlayback}
+                        onClick={handleStop}
                         className="btn btn-secondary me-2"
                       >
                         <FaStop /> Stop
@@ -393,16 +404,16 @@ const Playlists = () => {
                           
                           <div className="song-actions">
                             <button 
-                              onClick={() => playSong(song, playlistSongs, index)}
+                              onClick={() => handlePlayPause(song, playlistSongs, index)}
                               className="btn btn-sm btn-primary me-1"
                             >
                               {playerState.currentSong?.id === song.id && playerState.isPlaying ? 
                                 <FaPause /> : <FaPlay />
                               }
                             </button>
-                            {playerState.currentSong?.id === song.id && (
+                            {playerState.currentSong?.id === song.id && playerState.isPlaying && (
                               <button 
-                                onClick={stopPlayback}
+                                onClick={handleStop}
                                 className="btn btn-sm btn-secondary"
                               >
                                 <FaStop />

@@ -389,11 +389,33 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
           setIsPlayingTransposed(false);
         }
         
-        // Ensure the audio source is set
-        const audioSrc = getStreamUrl(currentAudio.filename);
-        if (originalAudioRef.src !== audioSrc) {
-          originalAudioRef.src = audioSrc;
-          await originalAudioRef.load();
+        // Load audio from local storage instead of server stream
+        console.log('🎵 Loading original audio from local storage for playback');
+        try {
+          // Get audio file from local storage
+          const audioFile = await localStorageService.getAudioFile(currentAudio.id);
+          if (audioFile && audioFile.blob) {
+            const audioUrl = URL.createObjectURL(audioFile.blob);
+            if (originalAudioRef.src !== audioUrl) {
+              // Clean up old URL if it exists
+              if (originalAudioRef.src && originalAudioRef.src.startsWith('blob:')) {
+                URL.revokeObjectURL(originalAudioRef.src);
+              }
+              originalAudioRef.src = audioUrl;
+              await originalAudioRef.load();
+              console.log('✅ Original audio loaded from local blob');
+            }
+          } else {
+            throw new Error('Audio file not found in local storage');
+          }
+        } catch (error) {
+          console.error('❌ Error loading original audio from local storage:', error);
+          // Fallback to server stream
+          const audioSrc = getStreamUrl(currentAudio.filename);
+          if (originalAudioRef.src !== audioSrc) {
+            originalAudioRef.src = audioSrc;
+            await originalAudioRef.load();
+          }
         }
         
         await originalAudioRef.play();

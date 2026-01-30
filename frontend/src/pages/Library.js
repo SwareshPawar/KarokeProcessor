@@ -70,18 +70,28 @@ const Library = () => {
   };
 
   const playSong = async (song) => {
+    console.log('🎵 playSong called with:', {
+      songId: song.id,
+      songTitle: song.title,
+      currentSongId: playerState.currentSong?.id,
+      isPlaying: playerState.isPlaying
+    });
+    
     try {
       // Check if this song is currently playing
       if (playerState.currentSong?.id === song.id && playerState.isPlaying) {
         // Pause if currently playing this song
+        console.log('🔄 Pausing current song');
         await audioPlayerService.pause();
         toast.success(`Paused "${song.title}"`);
       } else if (playerState.currentSong?.id === song.id && !playerState.isPlaying) {
         // Resume if this song is loaded but paused
+        console.log('▶️ Resuming current song');
         await audioPlayerService.play();
         toast.success(`Resumed "${song.title}"`);
       } else {
         // Load and play new song
+        console.log('🆕 Loading new song');
         await audioPlayerService.setPlaylist([song], 0);
         await audioPlayerService.play();
         toast.success(`Playing "${song.title}"`);
@@ -92,7 +102,7 @@ const Library = () => {
     }
   };
 
-  const playAllSongs = async () => {
+  const handlePlayAll = async () => {
     if (filteredFiles.length === 0) return;
     
     try {
@@ -122,7 +132,7 @@ const Library = () => {
     }
   };
 
-  const stopPlayback = async () => {
+  const handleStop = async () => {
     try {
       await audioPlayerService.stop();
       toast.success('Playback stopped');
@@ -331,7 +341,7 @@ const Library = () => {
                 {selectedFiles.length === filteredFiles.length ? 'Deselect All' : 'Select All'}
               </button>
               
-              <button onClick={playAllSongs} className="btn btn-primary me-2" disabled={filteredFiles.length === 0}>
+              <button onClick={handlePlayAll} className="btn btn-primary me-2" disabled={filteredFiles.length === 0}>
                 {playerState.isPlaying && playerState.playlist && filteredFiles.some(song => 
                   playerState.playlist.some(pSong => pSong.id === song.id)
                 ) ? 
@@ -341,7 +351,7 @@ const Library = () => {
               </button>
               
               {playerState.isPlaying && (
-                <button onClick={stopPlayback} className="btn btn-secondary me-2">
+                <button onClick={handleStop} className="btn btn-secondary me-2">
                   <FaStop /> Stop
                 </button>
               )}
@@ -411,7 +421,7 @@ const Library = () => {
 
                 <div className="file-actions">
                   <button 
-                    onClick={() => playSong(file)}
+                    onClick={() => handlePlayPause(file)}
                     className="btn btn-sm btn-primary me-1"
                     title="Play Song"
                   >
@@ -419,9 +429,9 @@ const Library = () => {
                       <FaPause /> : <FaPlay />
                     }
                   </button>
-                  {playerState.currentSong?.id === file.id && (
+                  {playerState.currentSong?.id === file.id && playerState.isPlaying && (
                     <button 
-                      onClick={stopPlayback}
+                      onClick={handleStop}
                       className="btn btn-sm btn-secondary me-1"
                       title="Stop"
                     >
