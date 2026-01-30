@@ -50,16 +50,48 @@ class LocalStorageService {
   async storeAudioFile(audioBlob, metadata) {
     if (!this.db) await this.init();
     
+    // Validate the blob
+    if (!audioBlob || !(audioBlob instanceof Blob)) {
+      throw new Error('Invalid audio blob provided');
+    }
+    
+    // Validate blob size
+    if (audioBlob.size < 1000) {
+      throw new Error('Audio file too small - may not be valid audio data');
+    }
+    
+    // Validate blob type and correct if necessary
+    let validatedBlob = audioBlob;
+    if (!audioBlob.type.startsWith('audio/') && audioBlob.type !== 'audio/mpeg') {
+      console.warn('Blob type is not audio, attempting to correct:', audioBlob.type);
+      
+      // If it's HTML or text, reject it
+      if (audioBlob.type.includes('html') || audioBlob.type.includes('text')) {
+        throw new Error(`Invalid audio data - received ${audioBlob.type} instead of audio`);
+      }
+      
+      // Create new blob with correct audio MIME type
+      validatedBlob = new Blob([audioBlob], { type: 'audio/mpeg' });
+    }
+    
+    console.log('Storing audio file:', {
+      originalSize: audioBlob.size,
+      validatedSize: validatedBlob.size,
+      originalType: audioBlob.type,
+      validatedType: validatedBlob.type,
+      filename: metadata.filename
+    });
+    
     const id = this.generateId();
     const audioFile = {
       id,
-      blob: audioBlob,
+      blob: validatedBlob,
       filename: metadata.filename,
       title: metadata.title || metadata.filename,
       originalName: metadata.originalName,
       source: metadata.source || 'upload', // 'upload', 'youtube'
-      size: audioBlob.size,
-      type: audioBlob.type || 'audio/mpeg',
+      size: validatedBlob.size,
+      type: validatedBlob.type,
       dateAdded: new Date(),
       metadata: {
         duration: metadata.duration,

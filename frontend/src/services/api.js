@@ -38,6 +38,10 @@ class ApiService {
     );
   }
 
+  get baseURL() {
+    return this.client.defaults.baseURL;
+  }
+
   // Audio API methods
   async uploadAudio(file, onProgress) {
     const formData = new FormData();

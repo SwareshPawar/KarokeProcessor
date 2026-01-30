@@ -44,8 +44,35 @@ const Upload = ({ setCurrentAudio }) => {
 
       // Store the processed file in local storage
       setUploadProgress(70);
-      const audioFileResponse = await fetch(`${ApiService.baseURL}/stream/${audioData.filename}`);
-      const audioBlob = await audioFileResponse.blob();
+      
+      // Download the audio file using the API service
+      let audioBlob;
+      
+      try {
+        console.log('Downloading audio for local storage:', audioData.filename);
+        const audioResponse = await ApiService.downloadAudio(audioData.filename);
+        audioBlob = new Blob([audioResponse.data], { type: 'audio/mpeg' });
+        
+        console.log('Successfully downloaded audio via API:', {
+          size: audioBlob.size,
+          type: audioBlob.type,
+          filename: audioData.filename
+        });
+        
+        // Validate that we got actual audio data
+        if (audioBlob.size < 1000) {
+          throw new Error('Downloaded file is too small to be valid audio');
+        }
+        
+      } catch (fetchError) {
+        console.error('Failed to download audio from server via API:', fetchError);
+        // If API download fails, use the original file blob
+        audioBlob = new Blob([file], { type: file.type || 'audio/mpeg' });
+        console.log('Using original file as fallback blob:', {
+          size: audioBlob.size,
+          type: audioBlob.type
+        });
+      }
       
       const storedFile = await localStorageService.storeAudioFile(
         audioBlob,
