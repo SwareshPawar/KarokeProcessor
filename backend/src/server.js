@@ -54,6 +54,11 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+// Serve React build files in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../../frontend/build')));
+}
+
 // Routes
 app.use('/api/audio', audioRoutes);
 app.use('/api/google-drive', googleDriveRoutes);
@@ -85,9 +90,13 @@ app.use((error, req, res, next) => {
   });
 });
 
-// 404 handler
+// 404 handler - Serve React app for all non-API routes in production
 app.use('*', (req, res) => {
-  res.status(404).json({ error: 'Endpoint not found' });
+  if (process.env.NODE_ENV === 'production' && !req.originalUrl.startsWith('/api')) {
+    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
+  } else {
+    res.status(404).json({ error: 'Endpoint not found' });
+  }
 });
 
 app.listen(PORT, () => {
