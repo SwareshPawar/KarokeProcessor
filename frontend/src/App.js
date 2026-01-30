@@ -8,6 +8,7 @@ import YouTube from './pages/YouTube';
 import Transpose from './pages/Transpose';
 import Library from './pages/Library';
 import StorageManager from './pages/StorageManager';
+import Playlists from './pages/Playlists';
 import './App.css';
 
 function App() {
@@ -65,6 +66,10 @@ function App() {
             <Route 
               path="/library" 
               element={<Library />} 
+            />
+            <Route 
+              path="/playlists" 
+              element={<Playlists />} 
             />
             <Route 
               path="/storage" 

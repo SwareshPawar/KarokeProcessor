@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FaMusic, FaHome, FaUpload, FaGoogleDrive, FaYoutube, FaExchangeAlt, FaHdd, FaBoxes } from 'react-icons/fa';
+import { FaMusic, FaHome, FaUpload, FaGoogleDrive, FaYoutube, FaExchangeAlt, FaHdd, FaBoxes, FaList } from 'react-icons/fa';
 import './Header.css';
 
 const Header = () => {
@@ -64,6 +64,14 @@ const Header = () => {
             >
               <FaBoxes />
               <span>Library</span>
+            </Link>
+            
+            <Link 
+              to="/playlists" 
+              className={`nav-link ${isActive('/playlists') ? 'active' : ''}`}
+            >
+              <FaList />
+              <span>Playlists</span>
             </Link>
             
             <Link 

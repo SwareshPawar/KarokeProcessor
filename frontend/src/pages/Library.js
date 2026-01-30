@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { FaHdd, FaTrash, FaDownload, FaUpload, FaSync, FaCloud, FaMusic } from 'react-icons/fa';
+import { FaHdd, FaTrash, FaDownload, FaUpload, FaSync, FaCloud, FaMusic, FaPlay, FaPause, FaPlus, FaList } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import localStorageService from '../services/localStorageService';
+import audioPlayerService from '../services/audioPlayerService';
+import playlistService from '../services/playlistService';
+import '../components/Playlist.css';
 
 const Library = () => {
   const [audioFiles, setAudioFiles] = useState([]);
@@ -11,18 +14,29 @@ const Library = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('dateAdded');
   const [sortOrder, setSortOrder] = useState('desc');
+  const [playerState, setPlayerState] = useState(audioPlayerService.getState());
+  const [playlists, setPlaylists] = useState([]);
+  const [showAddToPlaylist, setShowAddToPlaylist] = useState(null);
 
   useEffect(() => {
     loadLibrary();
     loadStorageStats();
+    loadPlaylists();
 
     // Listen for storage updates
     const handleStorageUpdate = () => {
       loadStorageStats();
     };
 
+    // Listen for player state changes
+    const playerUnsubscribe = audioPlayerService.addListener(setPlayerState);
+
     window.addEventListener('storageUpdated', handleStorageUpdate);
-    return () => window.removeEventListener('storageUpdated', handleStorageUpdate);
+    
+    return () => {
+      window.removeEventListener('storageUpdated', handleStorageUpdate);
+      playerUnsubscribe();
+    };
   }, []);
 
   const loadLibrary = async () => {
@@ -43,6 +57,51 @@ const Library = () => {
       setStorageStats(stats);
     } catch (error) {
       console.error('Error loading storage stats:', error);
+    }
+  };
+
+  const loadPlaylists = async () => {
+    try {
+      const allPlaylists = await playlistService.getAllPlaylists();
+      setPlaylists(allPlaylists);
+    } catch (error) {
+      console.error('Error loading playlists:', error);
+    }
+  };
+
+  const playSong = async (song) => {
+    try {
+      await audioPlayerService.setPlaylist([song], 0);
+      await audioPlayerService.play();
+      toast.success(`Playing "${song.title}"`);
+    } catch (error) {
+      console.error('Error playing song:', error);
+      toast.error('Failed to play song');
+    }
+  };
+
+  const playAllSongs = async () => {
+    if (filteredFiles.length === 0) return;
+    
+    try {
+      await audioPlayerService.setPlaylist(filteredFiles, 0);
+      await audioPlayerService.play();
+      toast.success(`Playing library (${filteredFiles.length} songs)`);
+    } catch (error) {
+      console.error('Error playing library:', error);
+      toast.error('Failed to play library');
+    }
+  };
+
+  const addSongToPlaylist = async (songId, playlistId) => {
+    try {
+      await playlistService.addSongToPlaylist(playlistId, songId);
+      const playlist = await playlistService.getPlaylist(playlistId);
+      toast.success(`Added to "${playlist.name}"`);
+      setShowAddToPlaylist(null);
+    } catch (error) {
+      console.error('Error adding song to playlist:', error);
+      toast.error('Failed to add song to playlist');
     }
   };
 
@@ -233,6 +292,10 @@ const Library = () => {
                 {selectedFiles.length === filteredFiles.length ? 'Deselect All' : 'Select All'}
               </button>
               
+              <button onClick={playAllSongs} className="btn btn-primary" disabled={filteredFiles.length === 0}>
+                <FaPlay /> Play All ({filteredFiles.length})
+              </button>
+              
               {selectedFiles.length > 0 && (
                 <button onClick={deleteSelectedFiles} className="btn btn-danger">
                   <FaTrash /> Delete Selected ({selectedFiles.length})
@@ -298,22 +361,83 @@ const Library = () => {
 
                 <div className="file-actions">
                   <button 
-                    onClick={() => window.location.href = `/transpose?file=${file.id}`}
+                    onClick={() => playSong(file)}
                     className="btn btn-sm btn-primary"
+                    title="Play Song"
                   >
-                    <FaSync /> Transpose
+                    {playerState.currentSong?.id === file.id && playerState.isPlaying ? 
+                      <FaPause /> : <FaPlay />
+                    }
+                  </button>
+                  <button 
+                    onClick={() => setShowAddToPlaylist(file.id)}
+                    className="btn btn-sm btn-secondary"
+                    title="Add to Playlist"
+                  >
+                    <FaPlus />
+                  </button>
+                  <button 
+                    onClick={() => window.location.href = `/transpose?file=${file.id}`}
+                    className="btn btn-sm btn-secondary"
+                    title="Transpose"
+                  >
+                    <FaSync />
                   </button>
                   <button 
                     onClick={() => deleteFile(file.id)}
                     className="btn btn-sm btn-danger"
+                    title="Delete"
                   >
-                    <FaTrash /> Delete
+                    <FaTrash />
                   </button>
                 </div>
               </div>
             ))
           )}
         </div>
+
+        {/* Add to Playlist Modal */}
+        {showAddToPlaylist && (
+          <div className="modal-overlay" onClick={() => setShowAddToPlaylist(null)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Add to Playlist</h2>
+                <button 
+                  onClick={() => setShowAddToPlaylist(null)}
+                  className="modal-close"
+                >×</button>
+              </div>
+              
+              <div className="modal-body">
+                {playlists.length === 0 ? (
+                  <div className="text-center">
+                    <FaList className="text-4xl opacity-50 mb-4" />
+                    <p>No playlists found</p>
+                    <a href="/playlists" className="btn btn-primary mt-4">
+                      <FaPlus /> Create Your First Playlist
+                    </a>
+                  </div>
+                ) : (
+                  <div className="playlist-list">
+                    {playlists.map(playlist => (
+                      <div 
+                        key={playlist.id} 
+                        className="playlist-item"
+                        onClick={() => addSongToPlaylist(showAddToPlaylist, playlist.id)}
+                      >
+                        <div className="playlist-info">
+                          <h4>{playlist.name}</h4>
+                          <p>{playlist.songCount} songs</p>
+                        </div>
+                        <FaPlus />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
