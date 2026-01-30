@@ -69,8 +69,9 @@ const Library = () => {
     }
   };
 
-  const playSong = async (song) => {
-    console.log('🎵 playSong called with:', {
+  // Shared audio control functions
+  const handlePlayPause = async (song) => {
+    console.log('🎵 Library handlePlayPause called with:', {
       songId: song.id,
       songTitle: song.title,
       currentSongId: playerState.currentSong?.id,
