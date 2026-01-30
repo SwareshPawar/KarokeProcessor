@@ -4,7 +4,7 @@
   "description": "Karaoke Processor - Offline-First PWA for Audio Transposition",
   "scripts": {
     "build": "cd frontend && npm install && npm run build",
-    "start": "cd frontend && npm run build",
+    "start": "echo 'Use npm run build for Vercel deployment'",
     "dev": "echo 'Run setup.bat for development setup'",
     "vercel-build": "cd frontend && npm install && npm run build"
   },
