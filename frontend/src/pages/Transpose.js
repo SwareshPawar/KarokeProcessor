@@ -175,9 +175,10 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
         });
         
         // Validate file size before upload - different limits for different platforms
-        const platform = process.env.REACT_APP_PLATFORM || 'local';
-        const maxSize = platform === 'vercel' ? 4 * 1024 * 1024 : 50 * 1024 * 1024; // 4MB for Vercel, 50MB for others
-        const sizeLimit = platform === 'vercel' ? '4MB' : '50MB';
+        const isVercel = process.env.REACT_APP_VERCEL || window.location.hostname.includes('vercel.app');
+        const maxSize = isVercel ? 4 * 1024 * 1024 : 50 * 1024 * 1024; // 4MB for Vercel, 50MB for others
+        const sizeLimit = isVercel ? '4MB' : '50MB';
+        const platform = isVercel ? 'vercel' : (window.location.hostname.includes('onrender.com') ? 'render' : 'local');
         
         if (file.size > maxSize) {
           throw new Error(`File size exceeds ${sizeLimit} limit for ${platform} deployment. Please use a smaller audio file.`);
@@ -296,9 +297,10 @@ const Transpose = ({ currentAudio, setCurrentAudio }) => {
         });
         
         // Validate file size before upload - different limits for different platforms
-        const platform = process.env.REACT_APP_PLATFORM || 'local';
-        const maxSize = platform === 'vercel' ? 4 * 1024 * 1024 : 50 * 1024 * 1024; // 4MB for Vercel, 50MB for others
-        const sizeLimit = platform === 'vercel' ? '4MB' : '50MB';
+        const isVercel = process.env.REACT_APP_VERCEL || window.location.hostname.includes('vercel.app');
+        const maxSize = isVercel ? 4 * 1024 * 1024 : 50 * 1024 * 1024; // 4MB for Vercel, 50MB for others
+        const sizeLimit = isVercel ? '4MB' : '50MB';
+        const platform = isVercel ? 'vercel' : (window.location.hostname.includes('onrender.com') ? 'render' : 'local');
         
         if (file.size > maxSize) {
           throw new Error(`File size exceeds ${sizeLimit} limit for ${platform} deployment. Please use a smaller audio file.`);

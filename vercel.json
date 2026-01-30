@@ -25,5 +25,8 @@
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ]
+  ],
+  "env": {
+    "REACT_APP_VERCEL": "1"
+  }
 }

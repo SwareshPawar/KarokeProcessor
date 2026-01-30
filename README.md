@@ -165,25 +165,42 @@ brew install ffmpeg
 
 ## 🚀 Deployment
 
-### Backend Deployment
+The application automatically detects its deployment platform and configures itself accordingly. No manual platform switching is required.
+
+### Vercel Deployment
+1. Connect your GitHub repository to Vercel
+2. Deploy - the app automatically detects it's running on Vercel
+3. File upload limit: 4MB (Vercel serverless function limitation)
+
+### Render Deployment  
+1. Connect your GitHub repository to Render
+2. Set environment variable `REACT_APP_RENDER=1` in Render dashboard
+3. Deploy - the app automatically detects it's running on Render  
+4. File upload limit: 50MB
+
+### Local Development
 ```bash
+# Backend
 cd backend
-npm run build
+npm start
+
+# Frontend  
+cd frontend
 npm start
 ```
+File upload limit: 50MB
 
-### Frontend Deployment
-```bash
-cd frontend
-npm run build
-# Deploy the build folder to your web server
-```
+### Platform Detection
+The app automatically detects the deployment platform using:
+- **Vercel**: Hostname contains 'vercel.app' or `REACT_APP_VERCEL` is set
+- **Render**: Hostname contains 'onrender.com' or `REACT_APP_RENDER` is set  
+- **Local**: Default fallback for development
 
-### Environment Variables for Production
-- Set `NODE_ENV=production`
-- Update `FRONTEND_URL` to your domain
-- Configure proper Google OAuth redirect URIs
-- Set secure JWT secrets and API keys
+### Environment Variables
+- No platform-specific environment files needed
+- Vercel: Automatically sets `REACT_APP_VERCEL=1`
+- Render: Manually set `REACT_APP_RENDER=1` in dashboard
+- Optional: Override API URL with `REACT_APP_API_URL`
 
 ## 🤝 Contributing
 

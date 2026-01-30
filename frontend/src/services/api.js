@@ -1,27 +1,37 @@
 import axios from 'axios';
 
-// Platform-specific API URL configuration
+// Platform-specific API URL configuration with auto-detection
 const getApiBaseUrl = () => {
   // If explicitly set, use that
   if (process.env.REACT_APP_API_URL) {
     return process.env.REACT_APP_API_URL;
   }
 
-  // Platform-specific URLs
-  const platform = process.env.REACT_APP_PLATFORM || 'local';
-  
-  switch (platform) {
-    case 'render':
-      return 'https://karokeprocessor.onrender.com/api';
-    case 'vercel':
-      return '/api'; // Vercel uses serverless functions at /api
-    case 'local':
-    default:
-      return 'http://localhost:3002/api';
+  // Auto-detect platform based on environment variables and hostname
+  if (process.env.REACT_APP_VERCEL || window.location.hostname.includes('vercel.app')) {
+    return '/api'; // Vercel uses serverless functions at /api
   }
+  
+  if (process.env.REACT_APP_RENDER || window.location.hostname.includes('onrender.com')) {
+    return 'https://karokeprocessor.onrender.com/api';
+  }
+  
+  // Local development
+  return 'http://localhost:3002/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();
+
+// Helper function to detect current platform
+const getCurrentPlatform = () => {
+  if (process.env.REACT_APP_VERCEL || window.location.hostname.includes('vercel.app')) {
+    return 'vercel';
+  }
+  if (process.env.REACT_APP_RENDER || window.location.hostname.includes('onrender.com')) {
+    return 'render';
+  }
+  return 'local';
+};
 
 class ApiService {
   constructor() {
