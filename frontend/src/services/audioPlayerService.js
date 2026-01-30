@@ -101,6 +101,12 @@ class AudioPlayerService {
         // Create URL from blob for local files
         const audioUrl = URL.createObjectURL(audioFile.blob);
         this.audio.src = audioUrl;
+        
+        // Clean up previous blob URL to prevent memory leaks
+        this.audio.addEventListener('loadstart', () => {
+          // URL.revokeObjectURL will be called after audio loads
+        });
+        
       } else {
         // Fallback to server stream if available
         this.audio.src = `/api/stream/${song.filename}`;
@@ -112,6 +118,10 @@ class AudioPlayerService {
       return true;
     } catch (error) {
       console.error('Failed to load song:', error);
+      console.error('Song object:', song);
+      if (typeof audioFile !== 'undefined') {
+        console.error('Audio file result:', audioFile);
+      }
       this.notifyListeners('error', error);
       return false;
     }

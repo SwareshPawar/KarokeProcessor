@@ -23,7 +23,19 @@ if (!fs.existsSync(uploadsDir)) {
 }
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      mediaSrc: ["'self'", "blob:", "data:"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "blob:", "data:", "https:"],
+      connectSrc: ["'self'", "https:", "wss:", "blob:"]
+    }
+  }
+}));
 
 // Rate limiting
 const limiter = rateLimit({
