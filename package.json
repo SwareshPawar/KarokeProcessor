@@ -5,7 +5,7 @@
   "main": "backend/src/server.js",
   "scripts": {
     "build": "cd frontend && npm install && npm run build",
-    "start": "cd backend && npm start",
+    "start": "cd frontend && npm run build",
     "dev": "echo 'Run setup.bat for development setup'",
     "vercel-build": "cd frontend && npm install && npm run build"
   },
