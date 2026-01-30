@@ -197,6 +197,7 @@ class ApiService {
         message: error.message || 'An unexpected error occurred' 
       };
     }
+  }
 }
 
 const apiService = new ApiService();

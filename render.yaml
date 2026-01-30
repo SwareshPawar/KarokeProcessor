@@ -2,7 +2,19 @@ services:
   - type: web
     name: karaoke-processor
     env: node
-    buildCommand: chmod +x build.sh && ./build.sh
+    buildCommand: |
+      # Install system dependencies
+      sudo apt-get update
+      sudo apt-get install -y ffmpeg
+      
+      # Build frontend
+      cd frontend
+      npm install
+      npm run build
+      
+      # Install backend dependencies
+      cd ../backend
+      npm install --production
     startCommand: cd backend && npm start
     plan: starter
     healthCheckPath: /api/health
