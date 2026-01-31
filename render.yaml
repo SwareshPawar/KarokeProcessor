@@ -3,21 +3,21 @@ services:
     name: karaoke-processor
     env: node
     runtime: node
-    rootDir: .
+    rootDir: ./backend
     buildCommand: |
       # Install system dependencies
       sudo apt-get update
       sudo apt-get install -y ffmpeg
       
-      # Build frontend
-      cd frontend
+      # Build frontend first
+      cd ../frontend
       npm install
       npm run build
       
       # Install backend dependencies
       cd ../backend
-      npm install --production
-    startCommand: cd backend && npm start
+      npm install
+    startCommand: npm start
     plan: starter
     healthCheckPath: /api/health
     envVars:

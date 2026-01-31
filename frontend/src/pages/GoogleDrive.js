@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { FaGoogleDrive, FaSpinner, FaDownload, FaSearch, FaExternalLinkAlt, FaKey } from 'react-icons/fa';
 import toast from 'react-hot-toast';
-import localStorageService from '../services/localStorageService';
 import ApiService from '../services/api';
 
 const GoogleDrive = ({ setCurrentAudio }) => {
@@ -11,13 +10,8 @@ const GoogleDrive = ({ setCurrentAudio }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [downloading, setDownloading] = useState({});
   const [accessToken, setAccessToken] = useState(null);
-  const [user, setUser] = useState(null);
 
-  useEffect(() => {
-    loadGoogleIdentityServices();
-  }, []);
-
-  const loadGoogleIdentityServices = () => {
+  const loadGoogleIdentityServices = useCallback(() => {
     // Load Google Identity Services script
     if (!window.google) {
       const script = document.createElement('script');
@@ -29,7 +23,12 @@ const GoogleDrive = ({ setCurrentAudio }) => {
     } else {
       initializeGoogleAuth();
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    loadGoogleIdentityServices();
+  }, [loadGoogleIdentityServices]);
 
   const initializeGoogleAuth = () => {
     const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
@@ -59,11 +58,6 @@ const GoogleDrive = ({ setCurrentAudio }) => {
     try {
       // Decode JWT token
       const credential = parseJwt(response.credential);
-      setUser({
-        name: credential.name,
-        email: credential.email,
-        picture: credential.picture
-      });
       
       // Get access token for Drive API
       await getAccessToken();
@@ -75,6 +69,7 @@ const GoogleDrive = ({ setCurrentAudio }) => {
     }
   };
 
+  // Helper functions need to be defined after the callback
   const parseJwt = (token) => {
     const base64Url = token.split('.')[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');

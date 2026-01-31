@@ -11,8 +11,6 @@ const Upload = ({ setCurrentAudio }) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [showDriveSync, setShowDriveSync] = useState(false);
-  const [driveSyncing, setDriveSyncing] = useState(false);
-  const [googleAuth, setGoogleAuth] = useState(null);
 
   const onDrop = async (acceptedFiles) => {
     if (acceptedFiles.length === 0) {

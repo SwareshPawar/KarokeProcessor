@@ -22,17 +22,6 @@ const getApiBaseUrl = () => {
 
 const API_BASE_URL = getApiBaseUrl();
 
-// Helper function to detect current platform
-const getCurrentPlatform = () => {
-  if (process.env.REACT_APP_VERCEL || window.location.hostname.includes('vercel.app')) {
-    return 'vercel';
-  }
-  if (process.env.REACT_APP_RENDER || window.location.hostname.includes('onrender.com')) {
-    return 'render';
-  }
-  return 'local';
-};
-
 class ApiService {
   constructor() {
     this.client = axios.create({
